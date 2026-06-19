@@ -1,0 +1,6 @@
+{
+  "name": "Endlif",
+  "description": "A premium personal safety and emergency response application featuring SOS alerts, safety check-ins, a safety circle of trusted family and friends, emergency dispatch, and a smart voice safety assistant.",
+  "requestFramePermissions": ["geolocation", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
