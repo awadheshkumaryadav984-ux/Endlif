@@ -81,26 +81,30 @@ export default function SosView({ onCancelSos, contacts = [] }: SosViewProps) {
     const ticker = setInterval(() => {
       setSecondsLeftForNext(prev => {
         if (prev <= 1) {
-          // Progress to next circular guardian or wrap up
-          const nextIndex = activeCallIndex + 1;
-          if (nextIndex < validContacts.length) {
-            setActiveCallIndex(nextIndex);
-            dialContact(nextIndex);
-            return 8; // Reset countdown delay for the next SIM broadcast
-          } else {
-            setCallingState('COMPLETED');
-            const doneTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            setDialLogs(prev => [`[${doneTime}] Dispatch complete. Sequential circle alert run verified successfully.`, ...prev]);
-            clearInterval(ticker);
-            return 0;
-          }
+          // Progress to next circular guardian or wrap up using state updater to keep closure fresh
+          let hasMore = false;
+          setActiveCallIndex(currentIndex => {
+            const nextIndex = currentIndex + 1;
+            if (nextIndex < validContacts.length) {
+              dialContact(nextIndex);
+              hasMore = true;
+              return nextIndex;
+            } else {
+              setCallingState('COMPLETED');
+              const doneTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              setDialLogs(logs => [`[${doneTime}] Dispatch complete. Sequential circle alert run verified successfully.`, ...logs]);
+              clearInterval(ticker);
+              return currentIndex;
+            }
+          });
+          return hasMore ? 8 : 0; // Reset countdown delay if there is a next SIM broadcast
         }
         return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(ticker);
-  }, [activeCallIndex, contacts]);
+  }, [contacts]);
 
   // Handle manual tap action for a specific circle contact
   const handleManualForceCall = (index: number) => {

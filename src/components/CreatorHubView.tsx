@@ -7,23 +7,19 @@ import {
   Award, 
   Sparkles, 
   Plus, 
-  Video, 
   Share2, 
   Heart, 
   MessageSquare, 
-  Tv, 
   Trophy, 
   Check, 
   ChevronRight, 
+  ChevronDown,
   UserPlus, 
   Loader2, 
   Crown, 
   Image as ImageIcon, 
-  Camera, 
   Globe, 
   Lock, 
-  Settings, 
-  PlusSquare, 
   Gift, 
   ExternalLink, 
   Coins, 
@@ -31,19 +27,38 @@ import {
   FileText,
   BookOpen,
   Send,
-  MessageCircle,
-  TrendingUp,
   Sliders,
-  Bell,
   X,
   Upload,
-  Play,
-  Pause,
-  Volume2,
-  FileUp,
   Eye,
-  ArrowRight
+  ArrowRight,
+  Shield,
+  AlertTriangle,
+  CheckCircle2,
+  Bookmark,
+  Info,
+  Calendar,
+  Compass
 } from 'lucide-react';
+
+interface FeedItem {
+  id: string;
+  type: 'news' | 'article' | 'post';
+  title: string;
+  category: string;
+  content?: string;
+  newsLink?: string;
+  verified: boolean;
+  trustScore: number;
+  views: number;
+  likes: number;
+  bookmarks: number;
+  shares: number;
+  timestamp: string;
+  region?: string;
+  language?: string;
+  screenshotUrl?: string;
+}
 
 interface LeaderboardItem {
   rank: number;
@@ -51,99 +66,13 @@ interface LeaderboardItem {
   username: string;
   avatar: string;
   points: number;
-  subscribers: number;
-  achievements: string[];
-  awardsEarned: string[];
-  isUser?: boolean;
+  reputation: number;
+  verificationRate: number;
+  level: number;
 }
 
-interface FeedItem {
-  id: string;
-  type: 'video' | 'post' | 'article';
-  title: string;
-  category: string;
-  content?: string; // body for post or article
-  duration?: string; // for videos
-  author: string;
-  views: number;
-  likes: number;
-  shares: number;
-  commentsCount: number;
-  timestamp: string;
-  isCustom?: boolean;
-  mediaUrl?: string; // base64 preview of uploaded image
-  fileName?: string; // name of uploaded file
-  fileSize?: string; // size of uploaded file
-}
-
-const PRESET_AVATARS = [
-  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&auto=format&fit=crop&q=80",
-];
-
-const PRESET_BANNERS = [
-  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80", 
-  "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&auto=format&fit=crop&q=80", 
-  "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=800&auto=format&fit=crop&q=80", 
-  "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&auto=format&fit=crop&q=80"  
-];
-
-const GUARDIAN_TROPHIES = [
-  {
-    id: 'green_impact',
-    name: 'Green Guardian',
-    color: 'emerald',
-    pointsReq: 10000,
-    accentColor: '#10b981',
-    accentText: 'text-emerald-450',
-    titleText: 'GREEN IMPACT AWARD',
-    pedestalText: 'GREEN AWARD',
-    motto: 'INFINITE IMPACT. ENDLESS LEGACY.',
-    badgeId: 'green_impact',
-    glowColor: 'shadow-[0_0_30px_rgba(16,185,129,0.35)] border-emerald-500/40',
-    baseBg: 'from-emerald-950 via-slate-900 to-emerald-950',
-    textColor: 'text-emerald-300',
-    description: 'Formed of reinforced carbon-density polymers and emerald alloy, this statue is given to grid guardians who reach major digital impact coordinates of 10k points.'
-  },
-  {
-    id: 'red_champion',
-    name: 'Red Guardian',
-    color: 'red',
-    pointsReq: 100000,
-    accentColor: '#f43f5e',
-    accentText: 'text-rose-450',
-    titleText: 'RED CHAMPION AWARD',
-    pedestalText: 'RED AWARD',
-    motto: 'TACTICAL INFLUENCE. ENDLESS COMMAND.',
-    badgeId: 'red_champion',
-    glowColor: 'shadow-[0_0_30px_rgba(244,63,94,0.35)] border-rose-500/40',
-    baseBg: 'from-rose-950 via-slate-900 to-rose-950',
-    textColor: 'text-rose-300',
-    description: 'Forged in ultra-durable titanium-graphene rose composite, this prestigious armor statue is granted to elite tactical command coordinators who cross 100k points.'
-  },
-  {
-    id: 'purple_legend',
-    name: 'Purple Guardian',
-    color: 'purple',
-    pointsReq: 500000,
-    accentColor: '#a855f7',
-    accentText: 'text-fuchsia-450',
-    titleText: 'PURPLE LEGEND AWARD',
-    pedestalText: 'PURPLE AWARD',
-    motto: 'ULTIMATE LEADERSHIP. ENDLESS COGNITION.',
-    badgeId: 'purple_legend',
-    glowColor: 'shadow-[0_0_30px_rgba(168,85,247,0.35)] border-fuchsia-500/40',
-    baseBg: 'from-fuchsia-950 via-slate-900 to-fuchsia-950',
-    textColor: 'text-fuchsia-300',
-    description: 'The absolute zenith of civic-safeguarding achievement. Cast in pure quantum-resonance fuchsia iridium, representing the ultimate advisor status at 500k points.'
-  }
-];
-
+// Custom SVG statue renderer for Guardian Awards (preserved as requested)
 const ShieldInfinityGuardStatue = ({ color, isUnlocked }: { color: string; isUnlocked: boolean }) => {
-  // color can be 'emerald' | 'red' | 'purple'
   const glowHex = color === 'emerald' ? '#10b981' : color === 'red' ? '#f43f5e' : '#a855f7';
   const strokeColor = isUnlocked ? glowHex : '#4b5563';
   const outlineColor = isUnlocked ? glowHex : '#374151';
@@ -153,7 +82,7 @@ const ShieldInfinityGuardStatue = ({ color, isUnlocked }: { color: string; isUnl
   return (
     <svg 
       viewBox="0 0 200 320" 
-      className="w-full h-72 transition-all duration-500"
+      className="w-full h-48 transition-all duration-500"
       style={{ filter: isUnlocked ? `drop-shadow(0 0 10px ${glowHex}55)` : 'none' }}
     >
       <defs>
@@ -170,7 +99,6 @@ const ShieldInfinityGuardStatue = ({ color, isUnlocked }: { color: string; isUnl
         )}
       </defs>
       
-      {/* Background glowing beam */}
       {isUnlocked && (
         <>
           <path 
@@ -186,9 +114,7 @@ const ShieldInfinityGuardStatue = ({ color, isUnlocked }: { color: string; isUnl
         </>
       )}
 
-      {/* Armored Cyber Knight Silhouette */}
       <g opacity={bodyOpacity}>
-        {/* Halo Crown behind the head */}
         {isUnlocked && (
           <path 
             d="M 60 70 A 40 40 0 0 1 140 70" 
@@ -200,7 +126,6 @@ const ShieldInfinityGuardStatue = ({ color, isUnlocked }: { color: string; isUnl
           />
         )}
 
-        {/* Outer spikes/aura wings representing the epic ornament in the photo */}
         <path 
           d="M 60 140 C 30 110 30 70 45 40 C 50 60 65 75 75 90 C 65 110 70 125 75 135" 
           fill="none" 
@@ -214,19 +139,16 @@ const ShieldInfinityGuardStatue = ({ color, isUnlocked }: { color: string; isUnl
           strokeWidth="1.5" 
         />
 
-        {/* High Headress Horns */}
         <path d="M 90 60 L 80 25 L 93 45 Z" fill={`url(#grad-${color})`} stroke={strokeColor} strokeWidth="1" />
         <path d="M 110 60 L 120 25 L 107 45 Z" fill={`url(#grad-${color})`} stroke={strokeColor} strokeWidth="1" />
         <path d="M 100 48 L 100 20 Z" stroke={glowHex} strokeWidth="2" filter={glowFilter} />
 
-        {/* Helmet / Cybernetic Face Mask */}
         <polygon 
           points="88,50 112,50 116,74 100,88 84,74" 
           fill="#111827" 
           stroke={strokeColor} 
           strokeWidth="1.5" 
         />
-        {/* Glowing Visor Slit */}
         <polygon 
           points="92,60 108,60 105,65 95,65" 
           fill={isUnlocked ? glowHex : '#6b7280'} 
@@ -234,15 +156,11 @@ const ShieldInfinityGuardStatue = ({ color, isUnlocked }: { color: string; isUnl
         />
         <line x1="100" y1="65" x2="100" y2="82" stroke={strokeColor} strokeWidth="1" />
 
-        {/* Pauldrons (Spiky layered shoulders) */}
-        {/* Left shoulder */}
         <path d="M 80 94 C 60 90 50 105 45 120 C 60 125 70 120 78 114 Z" fill={`url(#grad-${color})`} stroke={strokeColor} strokeWidth="1.5" />
         <path d="M 45 120 C 40 130 45 140 55 145 C 65 140 70 130 75 125 Z" fill="#1e293b" stroke={strokeColor} strokeWidth="1.5" />
-        {/* Right shoulder */}
         <path d="M 120 94 C 140 90 150 105 155 120 C 140 125 130 120 122 114 Z" fill={`url(#grad-${color})`} stroke={strokeColor} strokeWidth="1.5" />
         <path d="M 155 120 C 160 130 155 140 145 145 C 135 140 130 130 125 125 Z" fill="#1e293b" stroke={strokeColor} strokeWidth="1.5" />
 
-        {/* Chest Plate / Cuirass */}
         <polygon 
           points="78,96 122,96 125,145 100,165 75,145" 
           fill={`url(#grad-${color})`} 
@@ -250,7 +168,6 @@ const ShieldInfinityGuardStatue = ({ color, isUnlocked }: { color: string; isUnl
           strokeWidth="1.5" 
         />
         
-        {/* Chest Infinity Core Reactor */}
         <circle cx="100" cy="122" r="8" fill="#090d16" stroke={strokeColor} strokeWidth="1" />
         <path 
           d="M 96 122 C 92 118 92 126 96 122 C 100 118 100 126 104 122 C 108 118 108 126 104 122" 
@@ -260,7 +177,6 @@ const ShieldInfinityGuardStatue = ({ color, isUnlocked }: { color: string; isUnl
           filter={glowFilter}
         />
 
-        {/* Abdomen / Armored Midsection */}
         <polygon 
           points="84,145 116,145 112,178 88,178" 
           fill="#111827" 
@@ -268,29 +184,21 @@ const ShieldInfinityGuardStatue = ({ color, isUnlocked }: { color: string; isUnl
           strokeWidth="1.5" 
         />
         <line x1="100" y1="145" x2="100" y2="178" stroke={strokeColor} strokeWidth="1" />
-        <line x1="90" y1="156" x2="110" y2="156" stroke={strokeColor} strokeWidth="0.8" />
-        <line x1="92" y1="166" x2="108" y2="166" stroke={strokeColor} strokeWidth="0.8" />
 
-        {/* Tassets / Hip plates */}
         <polygon points="75,145 88,145 84,185 70,175" fill={`url(#grad-${color})`} stroke={strokeColor} strokeWidth="1" />
         <polygon points="125,145 112,145 116,185 130,175" fill={`url(#grad-${color})`} stroke={strokeColor} strokeWidth="1" />
 
-        {/* Left Arm & Gauntlet */}
         <path d="M 72 118 L 52 155 L 56 182 L 70 170 Z" fill={`url(#grad-${color})`} stroke={strokeColor} strokeWidth="1" />
-        {/* Right Arm holding sword */}
         <path d="M 128 118 L 148 155 L 144 182 L 130 170 Z" fill={`url(#grad-${color})`} stroke={strokeColor} strokeWidth="1" />
 
-        {/* Armored Legs */}
-        {/* Left Leg */}
         <polygon points="85,178 100,178 95,225 80,225" fill={`url(#grad-${color})`} stroke={strokeColor} strokeWidth="1.2" />
         <polygon points="80,225 95,225 92,270 74,270" fill="#0f172a" stroke={strokeColor} strokeWidth="1.2" />
         <polygon points="74,270 92,270 90,285 70,285" fill={`url(#grad-${color})`} stroke={strokeColor} strokeWidth="1" />
-        {/* Right Leg */}
+        
         <polygon points="100,178 115,178 120,225 105,225" fill={`url(#grad-${color})`} stroke={strokeColor} strokeWidth="1.2" />
         <polygon points="105,225 120,225 126,270 108,270" fill="#0f172a" stroke={strokeColor} strokeWidth="1.2" />
         <polygon points="108,270 126,270 130,285 110,285" fill={`url(#grad-${color})`} stroke={strokeColor} strokeWidth="1" />
 
-        {/* Cape behind the statue */}
         <path 
           d="M 50 120 Q 15 220 30 285 L 75 285 Z" 
           fill="none" 
@@ -306,8 +214,6 @@ const ShieldInfinityGuardStatue = ({ color, isUnlocked }: { color: string; isUnl
           strokeDasharray="3 3"
         />
 
-        {/* THE ROYAL INFINITY GREATSWORD */}
-        {/* Sword Blade aligned vertically in the center */}
         <path 
           d="M 98 85 L 102 85 L 101.5 242 L 98.5 242 Z" 
           fill={isUnlocked ? glowHex : '#374151'} 
@@ -315,16 +221,10 @@ const ShieldInfinityGuardStatue = ({ color, isUnlocked }: { color: string; isUnl
           strokeWidth="1" 
           filter={glowFilter}
         />
-        {/* Central glowing fuller line */}
         <line x1="100" y1="90" x2="100" y2="240" stroke={isUnlocked ? '#ffffff' : '#4b5563'} strokeWidth="1" />
-
-        {/* Sword Crossguard */}
         <polygon points="90,242 110,242 105,246 95,246" fill="#1e293b" stroke={strokeColor} strokeWidth="1.2" />
-
-        {/* Sword Hilt Grip */}
         <rect x="98" y="246" width="4" height="25" fill="#0f172a" stroke={strokeColor} strokeWidth="1" />
 
-        {/* AMAZING INFINITY LOOP HANDLE / POMMEL */}
         <path 
           d="M 94 275 C 89 268 83 275 88 280 C 93 285 107 265 112 270 C 117 275 111 282 106 275 C 101 268 97 282 94 275" 
           fill="none" 
@@ -332,7 +232,6 @@ const ShieldInfinityGuardStatue = ({ color, isUnlocked }: { color: string; isUnl
           strokeWidth="2.5" 
           filter={glowFilter}
         />
-        {/* Glowing aura core for sword hilt */}
         {isUnlocked && (
           <circle cx="100" cy="275" r="3" fill="#ffffff" filter={glowFilter} />
         )}
@@ -343,117 +242,142 @@ const ShieldInfinityGuardStatue = ({ color, isUnlocked }: { color: string; isUnl
 
 export default function CreatorHubView() {
   // --- Persistent Storage State ---
-  const [hasChannel, setHasChannel] = useState<boolean>(() => {
-    return localStorage.getItem('endlif_channel_created') === 'true';
-  });
-
-  const [channelName, setChannelName] = useState<string>(() => {
-    return localStorage.getItem('endlif_channel_name') || '';
-  });
-
-  const [username, setUsername] = useState<string>(() => {
-    return localStorage.getItem('endlif_channel_username') || '';
-  });
-
-  const [avatarUrl, setAvatarUrl] = useState<string>(() => {
-    return localStorage.getItem('endlif_channel_avatar') || PRESET_AVATARS[0];
-  });
-
-  const [bannerUrl, setBannerUrl] = useState<string>(() => {
-    return localStorage.getItem('endlif_channel_banner') || PRESET_BANNERS[0];
-  });
-
-  const [channelCategory, setChannelCategory] = useState<string>(() => {
-    return localStorage.getItem('endlif_channel_category') || 'Education';
-  });
-
   const [points, setPoints] = useState<number>(() => {
-    const saved = localStorage.getItem('endlif_channel_points');
-    return saved ? parseInt(saved, 10) : 1200;
+    const saved = localStorage.getItem('endlif_hub_points');
+    return saved ? parseInt(saved, 10) : 1550; // starts with Blue Guardian Level (1000+)
   });
 
-  // Core stats
-  const [subscribers, setSubscribers] = useState<number>(() => {
-    const saved = localStorage.getItem('endlif_channel_subscribers');
-    return saved ? parseInt(saved, 10) : 148;
-  });
-
-  const [views, setViews] = useState<number>(() => {
-    const saved = localStorage.getItem('endlif_channel_views');
-    return saved ? parseInt(saved, 10) : 3420;
-  });
-
-  const [likes, setLikes] = useState<number>(() => {
-    const saved = localStorage.getItem('endlif_channel_likes');
-    return saved ? parseInt(saved, 10) : 512;
-  });
-
-  const [shares, setShares] = useState<number>(() => {
-    const saved = localStorage.getItem('endlif_channel_shares');
-    return saved ? parseInt(saved, 10) : 96;
-  });
-
-  const [activeFollowers, setActiveFollowers] = useState<number>(() => {
-    const saved = localStorage.getItem('endlif_channel_active_followers');
-    return saved ? parseInt(saved, 10) : 84;
-  });
-
-  // Track dynamic claimed badges
+  const [verificationStatus, setVerificationStatus] = useState<string>('VERIFIED CREATOR');
+  
   const [claimedAwards, setClaimedAwards] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem('endlif_channel_claimed_awards');
-      return saved ? JSON.parse(saved) : [];
+      const saved = localStorage.getItem('endlif_claimed_guardian_statues');
+      return saved ? JSON.parse(saved) : ['blue_guardian'];
     } catch {
-      return [];
+      return ['blue_guardian'];
     }
   });
 
-  // Uploaded and Seeded feed items: unified collection of videos, posts, and articles
+  // Track achievements
+  const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('endlif_unlocked_achievements');
+      return saved ? JSON.parse(saved) : ['first_article'];
+    } catch {
+      return ['first_article'];
+    }
+  });
+
+  // Keep track of collapsed sections to avoid clutter
+  const [collapseState, setCollapseState] = useState({
+    pointsSystem: true,
+    weeklyMissions: false,
+    rankProgression: false,
+    reputation: false,
+    achievementVault: false,
+    rewardStore: true,
+    guardianTrophies: false,
+    hallOfGuardians: true
+  });
+
+  // Content type selectors: news, article, post
+  const [activeCardType, setActiveCardType] = useState<'news' | 'article' | 'post'>('news');
+
+  // Input fields for contents
+  const [newsTitle, setNewsTitle] = useState('');
+  const [newsLink, setNewsLink] = useState('');
+  const [newsScreenshot, setNewsScreenshot] = useState<string>('');
+  const [newsScreenshotName, setNewsScreenshotName] = useState<string>('');
+
+  const [articleTitle, setArticleTitle] = useState('');
+  const [articleBody, setArticleBody] = useState('');
+  const [articleTags, setArticleTags] = useState({
+    disasterPrep: true,
+    safetyTips: false,
+    cyberAwareness: false
+  });
+
+  const [postTitle, setPostTitle] = useState('');
+  const [postMessage, setPostMessage] = useState('');
+  const [postPoster, setPostPoster] = useState<string>('');
+  const [postPosterName, setPostPosterName] = useState<string>('');
+  const [postType, setPostType] = useState<'infographics' | 'emergency_tips' | 'posters'>('emergency_tips');
+
+  // AI Verification workflow
+  const [verificationProgress, setVerificationProgress] = useState(0);
+  const [verificationState, setVerificationState] = useState<'idle' | 'scanning' | 'verified'>('idle');
+  const [trustScore, setTrustScore] = useState<number>(0);
+  const [aiChecks, setAiChecks] = useState({
+    duplicate: false,
+    fakeNews: false,
+    safetyReview: false,
+    copyright: false
+  });
+
+  // Publish center state
+  const [publishCategory, setPublishCategory] = useState('Disaster');
+  const [publishRegion, setPublishRegion] = useState('Central Zone');
+  const [publishLanguage, setPublishLanguage] = useState('English');
+
+  // Dashboard Stats
+  const [publishedCount, setPublishedCount] = useState<number>(() => {
+    const saved = localStorage.getItem('endlif_published_count');
+    return saved ? parseInt(saved, 10) : 18;
+  });
+
+  // News and Feed items (initialized with premium safety alerts)
   const [feedItems, setFeedItems] = useState<FeedItem[]>(() => {
     try {
-      const saved = localStorage.getItem('endlif_channel_feed');
+      const saved = localStorage.getItem('endlif_hub_feed');
       return saved ? JSON.parse(saved) : [
         {
           id: 'item_1',
-          type: 'video',
-          title: 'Direct Survival Blueprint: How to Hardset Ad-Hoc Emergency Antennas',
-          category: 'Technology',
-          duration: '12:45',
-          author: 'Self',
-          views: 1240,
-          likes: 198,
-          shares: 42,
-          commentsCount: 16,
-          timestamp: '2026-06-11 12:44',
-          fileName: 'antenna_setup_hq.mp4',
-          fileSize: '42.8 MB'
+          type: 'news',
+          title: '🚨 Flash Flood Warning: Ad-Hoc Drainage Gates Activation Required',
+          category: 'Disaster',
+          newsLink: 'https://emergency.alert.gov/flash-drain',
+          verified: true,
+          trustScore: 98,
+          views: 1420,
+          likes: 312,
+          bookmarks: 96,
+          shares: 54,
+          timestamp: '2 hours ago',
+          region: 'Northern Sector',
+          language: 'English',
+          screenshotUrl: 'https://images.unsplash.com/photo-1547683905-f686c993aae5?w=500&auto=format&fit=crop&q=80'
         },
         {
           id: 'item_2',
-          type: 'post',
-          title: 'Immediate Alert: Local Emergency Backup Check-ins',
-          category: 'Motivation',
-          content: 'A quick reminder to configure periodic fail-safe alarms tonight. High voltage lightning is projected across Southern grid node sectors. Keep physical radio receivers calibrated to 88.5 FM.',
-          author: 'Self',
-          views: 940,
-          likes: 112,
-          shares: 28,
-          commentsCount: 9,
-          timestamp: '2026-06-13 18:20',
-          mediaUrl: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600&auto=format&fit=crop&q=80'
+          type: 'article',
+          title: '📖 Essential Cyber Hijacking Defense Matrix for Public Shelters',
+          category: 'Cyber Security',
+          content: 'When operating within localized mesh Wi-Fi configurations during main grid cutoffs, always utilize pre-configured static IP boundaries. Dynamic broadcasts remain highly susceptible to malicious interception routing vectors. This article outlines the essential protocol rules...',
+          verified: true,
+          trustScore: 95,
+          views: 980,
+          likes: 204,
+          bookmarks: 84,
+          shares: 42,
+          timestamp: '5 hours ago',
+          region: 'Global Matrix',
+          language: 'English'
         },
         {
           id: 'item_3',
-          type: 'article',
-          title: 'The Blueprint for Hyper-Localized Water Preservation and Siphon Science',
-          category: 'Education',
-          content: 'As public piping structures become highly vulnerable under dynamic atmospheric adjustments, maintaining local gravity-powered filtration siphons should be prioritized inside domestic shelter networks. This step-by-step master plan details the optimal sand-carbon density ratios for purifying rainwater under 5 minutes without electrical heat inputs.',
-          author: 'Self',
-          views: 1420,
-          likes: 202,
-          shares: 54,
-          commentsCount: 22,
-          timestamp: '2026-06-10 14:02'
+          type: 'post',
+          title: '📢 Women Safety Night Protocol & Safehouse Coordinates',
+          category: 'Women Safety',
+          content: 'A rapid emergency guide mapping the verified civilian-guarded safehouse networks operating 24/7. Fully supplied with medical backups and solar power routers. Share with community groups immediately.',
+          verified: true,
+          trustScore: 100,
+          views: 2450,
+          likes: 850,
+          bookmarks: 320,
+          shares: 198,
+          timestamp: '1 day ago',
+          region: 'West District',
+          language: 'Spanish'
         }
       ];
     } catch {
@@ -461,2059 +385,1904 @@ export default function CreatorHubView() {
     }
   });
 
-  // Interactive Content Studio Mode inside Dashboard
-  const [studioTab, setStudioTab] = useState<'video' | 'post' | 'article'>('video');
-  const [feedFilterTab, setFeedFilterTab] = useState<'all' | 'video' | 'post' | 'article'>('all');
-
-  // Form states for general channel setup
-  const [setupName, setSetupName] = useState('');
-  const [setupUsername, setSetupUsername] = useState('');
-  const [setupCategory, setSetupCategory] = useState('Education');
-  const [selectedAvatarIdx, setSelectedAvatarIdx] = useState(0);
-  const [selectedBannerIdx, setSelectedBannerIdx] = useState(0);
-
-  // Referral state inputs
-  const [refName, setRefName] = useState('');
-  const [refContact, setRefContact] = useState('');
-  const [isAddingReferral, setIsAddingReferral] = useState(false);
-
-  // Studio Upload Form fields
-  const [uploadTitle, setUploadTitle] = useState('');
-  const [uploadCategory, setUploadCategory] = useState('Education');
-  const [uploadContent, setUploadContent] = useState('');
-  const [uploadDuration, setUploadDuration] = useState('3:45');
-  
-  // High-fidelity file upload simulation states
-  const [uploadFileName, setUploadFileName] = useState('');
-  const [uploadFileSize, setUploadFileSize] = useState('');
-  const [uploadFileBase64, setUploadFileBase64] = useState('');
-  const [uploadFileProgress, setUploadFileProgress] = useState(0);
-  const [uploadingState, setUploadingState] = useState<'idle' | 'processing' | 'success'>('idle');
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Expanded View Modal/Overlay for Feed Items (Videos, Articles, Posts)
-  const [viewingItem, setViewingItem] = useState<FeedItem | null>(null);
-  const [videoPlaybackProgress, setVideoPlaybackProgress] = useState(0);
-  const [videoIsPlaying, setVideoIsPlaying] = useState(true);
-  const playTimerRef = useRef<any>(null);
-
-  // Popup overlay celebrating unlocked trophy badges
-  const [activeNotification, setActiveNotification] = useState<{
-    id: string;
-    title: string;
-    badge: string;
-    description: string;
-    reward: string;
-    color: string;
-  } | null>(null);
-
-  // Expanded View Modal/Overlay for inspecting Guardian Statues/Trophies
-  const [inspectingTrophy, setInspectingTrophy] = useState<any | null>(null);
-
-  // Synchronize dynamic persistent variables with localStorage
-  useEffect(() => {
-    localStorage.setItem('endlif_channel_created', hasChannel ? 'true' : 'false');
-    localStorage.setItem('endlif_channel_name', channelName);
-    localStorage.setItem('endlif_channel_username', username);
-    localStorage.setItem('endlif_channel_avatar', avatarUrl);
-    localStorage.setItem('endlif_channel_banner', bannerUrl);
-    localStorage.setItem('endlif_channel_category', channelCategory);
-    localStorage.setItem('endlif_channel_points', points.toString());
-    localStorage.setItem('endlif_channel_subscribers', subscribers.toString());
-    localStorage.setItem('endlif_channel_views', views.toString());
-    localStorage.setItem('endlif_channel_likes', likes.toString());
-    localStorage.setItem('endlif_channel_shares', shares.toString());
-    localStorage.setItem('endlif_channel_active_followers', activeFollowers.toString());
-    localStorage.setItem('endlif_channel_claimed_awards', JSON.stringify(claimedAwards));
-    localStorage.setItem('endlif_channel_feed', JSON.stringify(feedItems));
-  }, [hasChannel, channelName, username, avatarUrl, bannerUrl, channelCategory, points, subscribers, views, likes, shares, activeFollowers, claimedAwards, feedItems]);
-
-  // Handle mock video slider simulation in modal open State
-  useEffect(() => {
-    if (viewingItem && viewingItem.type === 'video' && videoIsPlaying) {
-      playTimerRef.current = setInterval(() => {
-        setVideoPlaybackProgress(prev => {
-          if (prev >= 100) {
-            return 0; // restart/loop
-          }
-          return prev + 1.2;
-        });
-      }, 150);
-    } else {
-      if (playTimerRef.current) clearInterval(playTimerRef.current);
-    }
-
-    return () => {
-      if (playTimerRef.current) clearInterval(playTimerRef.current);
-    };
-  }, [viewingItem, videoIsPlaying]);
-
-  // Integrated metrics as requested
-  const communityMembers = subscribers + activeFollowers;
-  const activeMembers = Math.floor(views * 0.14) + communityMembers;
-  const weeklyGrowth = `+${Math.floor((points / 25) + 4)}%`;
-
-  // Game Ranking Structure Config
-  const AWARDS_TIERS = [
-    {
-      id: 'blue_guardian',
-      name: '🔵 BLUE GUARDIAN AWARD',
-      pointsReq: 1000,
-      badge: '🔵 Blue Guardian Badge',
-      color: 'from-blue-600 via-indigo-600 to-slate-900 border-blue-500/50',
-      description: 'Acquired early in the civic-safety contribution journey.',
-      rewards: [
-        'Exclusive Blue Profile Badge Icon',
-        'Special Profile Avatar Frame Highlight',
-        'Early Leaderboard indexing inclusion'
-      ]
-    },
-    {
-      id: 'green_impact',
-      name: '🟢 GREEN IMPACT AWARD',
-      pointsReq: 10000,
-      badge: '🟢 Green Impact Trophy',
-      color: 'from-emerald-600 via-teal-600 to-slate-900 border-emerald-500/50',
-      description: 'Celebrates exceptional local content reach scores.',
-      rewards: [
-        '3 Months Complimentary Premium Upgrades',
-        'Official Endlif Survival Gift Box (First aid kit, custom badges)',
-        'Ecosystem Brand Ambassador status',
-        'Dynamic digital Guardian Achievement Trophy'
-      ]
-    },
-    {
-      id: 'red_champion',
-      name: '🔴 RED CHAMPION AWARD',
-      pointsReq: 100000,
-      badge: '🔴 Red Champion Emblem',
-      color: 'from-rose-600 via-rose-700 to-slate-900 border-rose-500/50',
-      description: 'Granted to high performers with wide digital authority.',
-      rewards: [
-        '1 Year Free Premium Subscription Key',
-        'Official Glass-Engraved Endlif Champion Trophy',
-        'Exclusive Endlif Field Merchandise kit (Premium Hoodie & Caps)',
-        'Featured Channel on global Frontpage spotlights'
-      ]
-    },
-    {
-      id: 'purple_legend',
-      name: '🟣 PURPLE LEGEND AWARD',
-      pointsReq: 500000,
-      badge: '🟣 Purple Legendary Crown',
-      color: 'from-purple-600 via-fuchsia-700 to-slate-900 border-purple-500/50',
-      description: 'The pinnacle of community leadership, resilience, and civic construction.',
-      rewards: [
-        'Lifetime Premium VIP Account Status',
-        'Permanent Hall of Legends induction position',
-        'Direct developer panel advisory voting access'
-      ]
-    }
-  ];
-
-  // Derive Rank Details dynamically
-  const getRankDetails = () => {
-    if (points >= 500000) return { rank: 'Endlif Legend', level: 'Level 5', icon: '💎', nextAward: null };
-    if (points >= 100000) return { rank: 'Endlif Champion', level: 'Level 4', icon: '🏆', nextAward: { id: 'purple_legend', req: 500000, rem: 500000 - points } };
-    if (points >= 10000) return { rank: 'Endlif Guardian', level: 'Level 3', icon: '🛡️', nextAward: { id: 'red_champion', req: 100000, rem: 100000 - points } };
-    if (points >= 1000) return { rank: 'Rising Star', level: 'Level 2', icon: '🌟', nextAward: { id: 'green_impact', req: 10000, rem: 10000 - points } };
-    return { rank: 'Pioneer Scout', level: 'Level 1', icon: '🌱', nextAward: { id: 'blue_guardian', req: 1000, rem: 1000 - points } };
-  };
-
-  const rankDetails = getRankDetails();
-
-  // Seed Static Top Creators for Hall of Legends
-  const HALL_OF_LEGENDS_STATIC: LeaderboardItem[] = [
-    {
-      rank: 1,
-      name: "Major Brody",
-      username: "@brody_preparedness",
-      avatar: "https://images.unsplash.com/photo-1550064876-c29b2933010b?w=150&auto=format&fit=crop&q=80",
-      points: 584000,
-      subscribers: 14200,
-      achievements: ["Ecosystem Founder", "Lifetime Admiral"],
-      awardsEarned: ["🏆 CHAMPION", "💎 LEGEND", "🔵 BLUE GUARDIAN"]
-    },
-    {
-      rank: 2,
-      name: "Sarah Connor",
-      username: "@sarah_preparedness",
-      avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
-      points: 512000,
-      subscribers: 10900,
-      achievements: ["Emergency Drills Advisor"],
-      awardsEarned: ["🏆 CHAMPION", "💎 LEGEND", "🛡️ GUARDIAN"]
-    },
-    {
-      rank: 3,
-      name: "Neo CyberGuard",
-      username: "@neo_shield",
-      avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
-      points: 215300,
-      subscribers: 6100,
-      achievements: ["Anti-Hack Advisor", "Tactical Architect"],
-      awardsEarned: ["🏆 CHAMPION", "🛡️ GUARDIAN"]
-    }
-  ];
-
-  // Dynamic user injection based on point standing
-  const getDynamicLeaderboard = (): LeaderboardItem[] => {
-    const list = [...HALL_OF_LEGENDS_STATIC];
-    if (hasChannel) {
-      const activeUserAwards: string[] = [];
-      if (points >= 1000) activeUserAwards.push("🔵 GUARDIAN BADGE");
-      if (points >= 10000) activeUserAwards.push("🟢 IMPACT TROPHY");
-      if (points >= 100000) activeUserAwards.push("🔴 CHAMPION EMBLEM");
-      if (points >= 500000) activeUserAwards.push("🟣 LEGENDARY CROWN");
-
-      const userItem: LeaderboardItem = {
-        rank: 99,
-        name: channelName || "You",
-        username: username || "@your_handle",
-        avatar: avatarUrl,
-        points: points,
-        subscribers: subscribers,
-        achievements: [rankDetails.rank, "Pioneer Explorer"],
-        awardsEarned: activeUserAwards,
-        isUser: true
-      };
-      
-      list.push(userItem);
-    }
-    
-    return list
-      .sort((a, b) => b.points - a.points)
-      .map((item, index) => ({ ...item, rank: index + 1 }));
-  };
-
-  const currentLeaderboard = getDynamicLeaderboard();
-
-  // --- File Processing (Drag & Drop + Input File) ---
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      processFile(file);
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      processFile(file);
-    }
-  };
-
-  const processFile = (file: File) => {
-    setUploadFileName(file.name);
-    
-    // Calculate readable file size
-    const mb = file.size / (1024 * 1024);
-    if (mb >= 1) {
-      setUploadFileSize(`${mb.toFixed(1)} MB`);
-    } else {
-      setUploadFileSize(`${(file.size / 1024).toFixed(0)} KB`);
-    }
-
-    // Auto load text for articles using FileReader
-    if (studioTab === 'article' && (file.name.endsWith('.txt') || file.name.endsWith('.md'))) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        if (text) {
-          const lines = text.split('\n');
-          const firstLine = lines[0]?.trim() || '';
-          // If first line behaves like markdown title
-          const prospectiveTitle = firstLine.replace(/^#+\s*/, '');
-          if (prospectiveTitle && prospectiveTitle.length > 3) {
-            setUploadTitle(prospectiveTitle);
-            setUploadContent(lines.slice(1).join('\n').trim());
-          } else {
-            setUploadContent(text);
-          }
-          showSuccessToast("📄 Local file contents loaded directly into draft article!");
-        }
-      };
-      reader.readAsText(file);
-    }
-
-    // Capture base64 representation if images uploaded for posts or articles
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setUploadFileBase64(result);
-        showSuccessToast("🖼️ Selected Image attached to Draft successfully!");
-      };
-      reader.readAsDataURL(file);
-    } else if (studioTab === 'video') {
-      showSuccessToast(`📹 Video file "${file.name}" linked. Ready to broadcast.`);
-      // Extract simulated duration from random numbers to make it seamless
-      const durationMin = Math.floor(Math.random() * 8) + 3;
-      const durationSec = Math.floor(Math.random() * 50) + 10;
-      setUploadDuration(`${durationMin}:${durationSec}`);
-    } else {
-      showSuccessToast(`📎 File linked: "${file.name}"`);
-    }
-  };
-
-  const triggerUploadInputClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  // --- Actions ---
-
-  const handleSetupChannel = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!setupName.trim() || !setupUsername.trim()) return;
-
-    const formattedUsername = setupUsername.startsWith('@') ? setupUsername : `@${setupUsername}`;
-    
-    setChannelName(setupName);
-    setUsername(formattedUsername);
-    setChannelCategory(setupCategory);
-    setAvatarUrl(PRESET_AVATARS[selectedAvatarIdx]);
-    setBannerUrl(PRESET_BANNERS[selectedBannerIdx]);
-    setHasChannel(true);
-
-    // Give points for setting up
-    setPoints(prev => prev + 150);
-    showSuccessToast("Channel initialized! +150 Points received.");
-
-    if (window.navigator?.vibrate) {
-      window.navigator.vibrate([100, 50, 100]);
-    }
-  };
-
-  const handleStudioUploadSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!uploadTitle.trim()) {
-      alert("Please provide a title for your broadcast draft.");
-      return;
-    }
-
-    setUploadingState('processing');
-    setUploadFileProgress(0);
-
-    // Animate a professional real-time uploader process
-    const interval = setInterval(() => {
-      setUploadFileProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setUploadingState('success');
-          
-          setTimeout(() => {
-            let ptsGained = 50;
-            let iconNotification = "💬 Info Alert Broadcasted Live!";
-            
-            if (studioTab === 'video') {
-              ptsGained = 150;
-              iconNotification = "📹 Tactical Video Drill Approved!";
-            } else if (studioTab === 'article') {
-              ptsGained = 200;
-              iconNotification = "📄 Verified Expert Article Published!";
-            }
-
-            const newItem: FeedItem = {
-              id: `item_${Date.now()}`,
-              type: studioTab,
-              title: uploadTitle,
-              category: uploadCategory,
-              content: studioTab !== 'video' ? uploadContent : undefined,
-              duration: studioTab === 'video' ? uploadDuration : undefined,
-              author: 'Self',
-              views: Math.floor(Math.random() * 40) + 20,
-              likes: Math.floor(Math.random() * 10) + 2,
-              shares: Math.floor(Math.random() * 6) + 1,
-              commentsCount: Math.floor(Math.random() * 3),
-              timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
-              isCustom: true,
-              mediaUrl: uploadFileBase64 || undefined,
-              fileName: uploadFileName || undefined,
-              fileSize: uploadFileSize || undefined
-            };
-
-            setFeedItems(prev => [newItem, ...prev]);
-            setPoints(prev => prev + ptsGained);
-            
-            // Increment creator general scores
-            setViews(prev => prev + newItem.views);
-            setLikes(prev => prev + newItem.likes);
-            setShares(prev => prev + newItem.shares);
-
-            // Reset field states
-            setUploadTitle('');
-            setUploadContent('');
-            setUploadFileName('');
-            setUploadFileSize('');
-            setUploadFileBase64('');
-            setUploadFileProgress(0);
-            setUploadingState('idle');
-
-            showSuccessToast(`${iconNotification} +${ptsGained} PTS Credited!`);
-            
-            if (window.navigator?.vibrate) {
-              window.navigator.vibrate([120, 40, 120]);
-            }
-          }, 800);
-
-          return 100;
-        }
-        return prev + Math.floor(Math.random() * 16) + 10;
-      });
-    }, 150);
-  };
-
-  const showSuccessToast = (message: string) => {
-    // Elegant toast banner
-    const existing = document.getElementById('endlif-success-toast');
-    if (existing) existing.remove();
-
-    const banner = document.createElement('div');
-    banner.id = 'endlif-success-toast';
-    banner.className = 'fixed bottom-6 right-6 bg-slate-900 border border-emerald-450 text-emerald-100 py-3.5 px-6 rounded-2xl shadow-xl z-[999999] text-xs font-bold tracking-wider uppercase flex items-center gap-2 max-w-sm transition-all duration-300 ease-out translate-y-0';
-    banner.innerHTML = `🌟 ${message}`;
-    document.body.appendChild(banner);
-    
-    setTimeout(() => {
-      banner.style.opacity = '0';
-      banner.style.transform = 'translateY(15px)';
-      setTimeout(() => banner.remove(), 400);
-    }, 3200);
-  };
-
-  const handleReferralSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!refName.trim() || !refContact.trim()) return;
-
-    setIsAddingReferral(true);
-
-    setTimeout(() => {
-      const pointsGained = 100;
-      setPoints(prev => prev + pointsGained);
-      setSubscribers(prev => prev + 1);
-      setActiveFollowers(prev => prev + 2);
-
-      setRefName('');
-      setRefContact('');
-      setIsAddingReferral(false);
-
-      showSuccessToast(`Referral Registered! +${pointsGained} Points Awarded.`);
-
-      if (window.navigator?.vibrate) {
-        window.navigator.vibrate([80, 50, 80]);
-      }
-    }, 1000);
-  };
-
-  const triggerEngagementBonus = () => {
-    const bonusPts = 250;
-    setPoints(prev => prev + bonusPts);
-    setSubscribers(prev => prev + Math.floor(Math.random() * 15) + 8);
-    setViews(prev => prev + Math.floor(Math.random() * 400) + 200);
-    setActiveFollowers(prev => prev + Math.floor(Math.random() * 10) + 5);
-
-    showSuccessToast(`🔥 High Engagement Bonus Activated! +${bonusPts} PTS.`);
-    if (window.navigator?.vibrate) {
-      window.navigator.vibrate([150, 50, 150]);
-    }
-  };
-
-  const simulateItemLike = (id: string, currentlyLiked: number) => {
-    const ptsAwarded = 5;
-    setPoints(prev => prev + ptsAwarded);
-    setLikes(prev => prev + 1);
-
-    setFeedItems(prev => prev.map(item => {
-      if (item.id === id) {
-        return { ...item, likes: item.likes + 1 };
-      }
-      return item;
-    }));
-
-    showSuccessToast(`Safety Content Liked! Appraised +${ptsAwarded} PTS.`);
-    if (window.navigator?.vibrate) {
-      window.navigator.vibrate([50]);
-    }
-  };
-
-  const simulateItemShare = (id: string, currentlyShared: number) => {
-    const ptsAwarded = 10;
-    setPoints(prev => prev + ptsAwarded);
-    setShares(prev => prev + 1);
-
-    setFeedItems(prev => prev.map(item => {
-      if (item.id === id) {
-        return { ...item, shares: item.shares + 1 };
-      }
-      return item;
-    }));
-
-    showSuccessToast(`Content Distributed! Accredited +${ptsAwarded} PTS.`);
-    if (window.navigator?.vibrate) {
-      window.navigator.vibrate([60]);
-    }
-  };
-
-  const claimGamingBadge = (tierId: string, badgeName: string, reqPoints: number, desc: string) => {
-    if (points < reqPoints) {
-      alert(`Voucher locked! You need at least ${reqPoints.toLocaleString()} points to extract this award. Currently you have ${points.toLocaleString()} points.`);
-      return;
-    }
-
-    if (claimedAwards.includes(tierId)) {
-      showSuccessToast(`You already claimed the ${badgeName}!`);
-      return;
-    }
-
-    setClaimedAwards(prev => [...prev, tierId]);
-
-    const activeTierObj = AWARDS_TIERS.find(t => t.id === tierId);
-    setActiveNotification({
-      id: tierId,
-      title: badgeName,
-      badge: badgeName,
-      description: desc,
-      reward: activeTierObj ? activeTierObj.rewards.join(', ') : 'Exclusive Access Privileges',
-      color: 'bg-indigo-600'
-    });
-
-    if (window.navigator?.vibrate) {
-      window.navigator.vibrate([100, 100, 100, 200]);
-    }
-  };
-
-  const deleteCustomItem = (id: string) => {
-    if (confirm("Are you sure you want to delete this resource post?")) {
-      setFeedItems(prev => prev.filter(item => item.id !== id));
-      showSuccessToast("Successfully deleted content post from channel archive.");
-    }
-  };
-
-  const resetAllState = () => {
-    if (confirm("Reset Creator Hub data? This will purge subscribers, points, and channel assets back to safe defaults.")) {
-      localStorage.removeItem('endlif_channel_created');
-      localStorage.removeItem('endlif_channel_name');
-      localStorage.removeItem('endlif_channel_username');
-      localStorage.removeItem('endlif_channel_avatar');
-      localStorage.removeItem('endlif_channel_banner');
-      localStorage.removeItem('endlif_channel_category');
-      localStorage.removeItem('endlif_channel_points');
-      localStorage.removeItem('endlif_channel_subscribers');
-      localStorage.removeItem('endlif_channel_views');
-      localStorage.removeItem('endlif_channel_likes');
-      localStorage.removeItem('endlif_channel_shares');
-      localStorage.removeItem('endlif_channel_active_followers');
-      localStorage.removeItem('endlif_channel_claimed_awards');
-      localStorage.removeItem('endlif_channel_feed');
-
-      setHasChannel(false);
-      setChannelName('');
-      setUsername('');
-      setPoints(1200);
-      setSubscribers(148);
-      setViews(3420);
-      setLikes(512);
-      setShares(96);
-      setActiveFollowers(84);
-      setClaimedAwards([]);
-      // Reset Default Feed Items
-      setFeedItems([
-        {
-          id: 'item_1',
-          type: 'video',
-          title: 'Direct Survival Blueprint: How to Hardset Ad-Hoc Emergency Antennas',
-          category: 'Technology',
-          duration: '12:45',
-          author: 'Self',
-          views: 1240,
-          likes: 198,
-          shares: 42,
-          commentsCount: 16,
-          timestamp: '2026-06-11 12:44',
-          fileName: 'antenna_setup_hq.mp4',
-          fileSize: '42.8 MB'
-        },
-        {
-          id: 'item_2',
-          type: 'post',
-          title: 'Immediate Alert: Local Emergency Backup Check-ins',
-          category: 'Motivation',
-          content: 'A quick reminder to configure periodic fail-safe alarms tonight. High voltage lightning is projected across Southern grid node sectors. Keep physical radio receivers calibrated to 88.5 FM.',
-          author: 'Self',
-          views: 940,
-          likes: 112,
-          shares: 28,
-          commentsCount: 9,
-          timestamp: '2026-06-13 18:20',
-          mediaUrl: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600&auto=format&fit=crop&q=80'
-        }
-      ]);
-      showSuccessToast("Creator Hub state returned to defaults.");
-    }
-  };
-
-  const activeFilteredItems = feedItems.filter(item => {
-    if (feedFilterTab === 'all') return true;
-    return item.type === feedFilterTab;
+  // Active filter tab in feed
+  const [feedFilterTab, setFeedFilterTab] = useState<'all' | 'news' | 'article' | 'post' | 'saved'>('all');
+
+  // State-based Toast notifier
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Weekly missions progress
+  const [weeklyMissionsState, setWeeklyMissionsState] = useState({
+    articles: 3, // 3 out of 5
+    posts: 7, // 7 out of 10
+    newsReports: 12, // 12 out of 20
+    helpfulVotes: 145, // 145 out of 200
+    streakCompleted: true
   });
 
+  // Selected Leaderboard category
+  const [leaderboardTab, setLeaderboardTab] = useState<'global' | 'country' | 'state' | 'city' | 'college' | 'friends'>('global');
+
+  // Animation states for unlocked trophy celebration
+  const [celebratingTrophy, setCelebratingTrophy] = useState<{ id: string, name: string, icon: string, description: string } | null>(null);
+
+  // Save changes to localStorage on change
+  useEffect(() => {
+    localStorage.setItem('endlif_hub_points', points.toString());
+    localStorage.setItem('endlif_claimed_guardian_statues', JSON.stringify(claimedAwards));
+    localStorage.setItem('endlif_unlocked_achievements', JSON.stringify(unlockedAchievements));
+    localStorage.setItem('endlif_hub_feed', JSON.stringify(feedItems));
+    localStorage.setItem('endlif_published_count', publishedCount.toString());
+  }, [points, claimedAwards, unlockedAchievements, feedItems, publishedCount]);
+
+  // Helper to trigger Toast
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
+
+  // Derive Rank Details dynamically
+  const getRankProgression = () => {
+    const list = [
+      { level: 1, name: 'Citizen Reporter', min: 0, max: 999, color: 'text-slate-400', bg: 'from-slate-600/30 to-slate-900/30' },
+      { level: 2, name: 'Blue Guardian', min: 1000, max: 9999, color: 'text-blue-400', bg: 'from-blue-600/30 to-blue-900/30' },
+      { level: 3, name: 'Green Guardian', min: 10000, max: 49999, color: 'text-emerald-400', bg: 'from-emerald-600/30 to-emerald-900/30' },
+      { level: 4, name: 'Red Champion', min: 50000, max: 99999, color: 'text-rose-400', bg: 'from-rose-600/30 to-rose-900/30' },
+      { level: 5, name: 'Purple Legend', min: 100000, max: 499999, color: 'text-fuchsia-400', bg: 'from-fuchsia-600/30 to-fuchsia-900/30' },
+      { level: 6, name: 'National Guardian', min: 500000, max: 999999, color: 'text-indigo-400', bg: 'from-indigo-600/30 to-indigo-900/30' },
+      { level: 7, name: 'Global Safety Ambassador', min: 1000000, max: 99999999, color: 'text-amber-400', bg: 'from-amber-600/30 to-amber-900/30' },
+    ];
+
+    const current = list.find(l => points >= l.min && points <= l.max) || list[list.length - 1];
+    const nextIdx = list.indexOf(current) + 1;
+    const next = nextIdx < list.length ? list[nextIdx] : null;
+    const progressPct = next ? Math.min(100, Math.max(5, ((points - current.min) / (next.min - current.min)) * 100)) : 100;
+
+    return { list, current, next, progressPct };
+  };
+
+  const rankInfo = getRankProgression();
+
+  // Handle claim awards/statues permanently (Blue, Green, Red, Purple)
+  const claimGuardianStatue = (id: string, name: string, req: number, desc: string) => {
+    if (points < req) {
+      triggerToast(`⚠️ Insufficient Points! You need ${req.toLocaleString()} PTS. Current: ${points.toLocaleString()} PTS`);
+      return;
+    }
+    if (claimedAwards.includes(id)) {
+      triggerToast(`✓ "${name}" statue is already active in your chamber.`);
+      return;
+    }
+    setClaimedAwards(prev => [...prev, id]);
+    triggerToast(`🎉 Dynamic Figurine Activated: "${name}" initialized successfully!`);
+    
+    // Unlock achievement for statue claim
+    if (!unlockedAchievements.includes('community_protector')) {
+      triggerAchievement('community_protector', 'Community Protector', '🏆', 'Awarded for claim and setup of an advanced Guardian Statue.');
+    }
+  };
+
+  // Helper to trigger achievement vault unlock with futuristic animation celebration
+  const triggerAchievement = (id: string, name: string, icon: string, description: string) => {
+    if (unlockedAchievements.includes(id)) return;
+    setUnlockedAchievements(prev => [...prev, id]);
+    setCelebratingTrophy({ id, name, icon, description });
+  };
+
+  // Drag and Drop simulation for Newspaper upload and posters
+  const handleScreenshotDrop = (e: React.DragEvent, type: 'news' | 'post') => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (type === 'news') {
+          setNewsScreenshot(reader.result as string);
+          setNewsScreenshotName(file.name);
+          triggerToast(`📰 Attached Newspaper Screenshot: ${file.name}`);
+        } else {
+          setPostPoster(reader.result as string);
+          setPostPosterName(file.name);
+          triggerToast(`🎨 Attached Infographic Poster: ${file.name}`);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // File picker simulation
+  const handleScreenshotSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'news' | 'post') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (type === 'news') {
+          setNewsScreenshot(reader.result as string);
+          setNewsScreenshotName(file.name);
+          triggerToast(`📰 Attached Newspaper Screenshot: ${file.name}`);
+        } else {
+          setPostPoster(reader.result as string);
+          setPostPosterName(file.name);
+          triggerToast(`🎨 Attached Infographic Poster: ${file.name}`);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Trigger simulated high-fidelity AI verification process
+  const runAiVerification = () => {
+    // Validate fields first
+    if (activeCardType === 'news') {
+      if (!newsTitle.trim()) {
+        triggerToast('❌ News Title is required for verification.');
+        return;
+      }
+    } else if (activeCardType === 'article') {
+      if (!articleTitle.trim() || !articleBody.trim()) {
+        triggerToast('❌ Title & Body are required for article verification.');
+        return;
+      }
+    } else {
+      if (!postTitle.trim() || !postMessage.trim()) {
+        triggerToast('❌ Title & Short Message are required for safety posts.');
+        return;
+      }
+    }
+
+    setVerificationState('scanning');
+    setVerificationProgress(0);
+    setAiChecks({ duplicate: false, fakeNews: false, safetyReview: false, copyright: false });
+
+    // Step-by-step scanner interval
+    const interval = setInterval(() => {
+      setVerificationProgress(prev => {
+        const next = prev + 10;
+        if (next === 25) {
+          setAiChecks(c => ({ ...c, duplicate: true }));
+        } else if (next === 50) {
+          setAiChecks(c => ({ ...c, fakeNews: true }));
+        } else if (next === 75) {
+          setAiChecks(c => ({ ...c, safetyReview: true }));
+        } else if (next === 100) {
+          setAiChecks(c => ({ ...c, copyright: true }));
+          setVerificationState('verified');
+          // Generate customized trust score
+          const calculatedScore = Math.floor(Math.random() * 15) + 85; // 85-100 score
+          setTrustScore(calculatedScore);
+          triggerToast(`🛡️ Verification Completed! Trust Index: ${calculatedScore}%`);
+          clearInterval(interval);
+        }
+        return next;
+      });
+    }, 250);
+  };
+
+  // Publish content directly to the Feed and reward points
+  const handlePublish = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verificationState !== 'verified') {
+      triggerToast('⚠️ Content must be run through AI Verification Panel first!');
+      return;
+    }
+
+    let pGained = 0;
+    let newItem: FeedItem;
+
+    if (activeCardType === 'news') {
+      pGained = 100;
+      newItem = {
+        id: `custom_${Date.now()}`,
+        type: 'news',
+        title: newsTitle,
+        category: publishCategory,
+        newsLink: newsLink || 'Self-published dispatch link',
+        verified: true,
+        trustScore: trustScore,
+        views: 12,
+        likes: 1,
+        bookmarks: 0,
+        shares: 0,
+        timestamp: 'Just now',
+        region: publishRegion,
+        language: publishLanguage,
+        screenshotUrl: newsScreenshot || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=500&auto=format&fit=crop&q=80'
+      };
+
+      // Bonus point categories
+      if (newsTitle.toLowerCase().includes('breaking')) {
+        pGained += 50; // Breaking verified: +150
+      } else if (publishRegion !== 'Central Zone') {
+        pGained += 80; // Exclusive Local: +180
+      }
+
+      // Clear inputs
+      setNewsTitle('');
+      setNewsLink('');
+      setNewsScreenshot('');
+      setNewsScreenshotName('');
+
+    } else if (activeCardType === 'article') {
+      pGained = 200;
+      newItem = {
+        id: `custom_${Date.now()}`,
+        type: 'article',
+        title: articleTitle,
+        category: publishCategory,
+        content: articleBody,
+        verified: true,
+        trustScore: trustScore,
+        views: 8,
+        likes: 0,
+        bookmarks: 0,
+        shares: 0,
+        timestamp: 'Just now',
+        region: publishRegion,
+        language: publishLanguage
+      };
+
+      // Bonus point categories
+      if (articleBody.length > 500) {
+        pGained += 100; // Featured Article: +300
+      } else if (articleTags.cyberAwareness && articleTags.disasterPrep) {
+        pGained += 300; // Expert Article: +500
+      }
+
+      // Clear inputs
+      setArticleTitle('');
+      setArticleBody('');
+
+    } else {
+      pGained = 50;
+      newItem = {
+        id: `custom_${Date.now()}`,
+        type: 'post',
+        title: postTitle,
+        category: publishCategory,
+        content: postMessage,
+        verified: true,
+        trustScore: trustScore,
+        views: 15,
+        likes: 2,
+        bookmarks: 1,
+        shares: 0,
+        timestamp: 'Just now',
+        region: publishRegion,
+        language: publishLanguage,
+        screenshotUrl: postPoster || undefined
+      };
+
+      // Clear inputs
+      setPostTitle('');
+      setPostMessage('');
+      setPostPoster('');
+      setPostPosterName('');
+    }
+
+    // Append to Feed list
+    setFeedItems(prev => [newItem, ...prev]);
+    setPoints(prev => prev + pGained);
+    setPublishedCount(prev => prev + 1);
+    setVerificationState('idle');
+    setVerificationProgress(0);
+    setTrustScore(0);
+
+    triggerToast(`🚀 Published! +${pGained} Safety Points Credited.`);
+
+    // Trigger Achievements check
+    if (publishedCount + 1 >= 20 && !unlockedAchievements.includes('disaster_hero')) {
+      triggerAchievement('disaster_hero', 'Disaster Hero', '🏆', 'Successfully published 20 emergency preparedness dispatches.');
+    }
+  };
+
+  // Interactive feed actions
+  const handleVote = (id: string) => {
+    setFeedItems(prev => prev.map(item => {
+      if (item.id === id) {
+        const liked = item.likes + 1;
+        triggerToast(`❤️ Upvoted safety alert! Contribution point added (+5 PTS)`);
+        setPoints(p => p + 5);
+        return { ...item, likes: liked };
+      }
+      return item;
+    }));
+  };
+
+  const handleBookmark = (id: string) => {
+    setFeedItems(prev => prev.map(item => {
+      if (item.id === id) {
+        const bm = item.bookmarks + 1;
+        triggerToast(`📁 Saved to reference archive! (+3 PTS)`);
+        setPoints(p => p + 3);
+        return { ...item, bookmarks: bm };
+      }
+      return item;
+    }));
+  };
+
+  const handleShare = (id: string) => {
+    setFeedItems(prev => prev.map(item => {
+      if (item.id === id) {
+        const sh = item.shares + 1;
+        triggerToast(`🔗 Shared broadcast coordinates securely! (+10 PTS)`);
+        setPoints(p => p + 10);
+        return { ...item, shares: sh };
+      }
+      return item;
+    }));
+  };
+
+  const handleReport = (id: string) => {
+    triggerToast('🚨 Report submitted. Safety auditors will flag this post if violations are found.');
+  };
+
+  // Reward Store Redemption Flow
+  const redeemReward = (id: string, cost: number, title: string) => {
+    if (points < cost) {
+      triggerToast(`❌ Locked! You need ${cost.toLocaleString()} points. Currently you have ${points.toLocaleString()} points.`);
+      return;
+    }
+    setPoints(prev => prev - cost);
+    triggerToast(`🎟️ Redeemed! Your voucher for "${title}" has been transmitted to your secure inbox.`);
+  };
+
   return (
-    <div className="flex flex-col w-full px-4 sm:px-6 py-4 pb-28 text-slate-800 space-y-6 mt-16 text-left selection:bg-indigo-100 font-sans max-w-7xl mx-auto">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans antialiased text-left relative overflow-hidden">
       
-      {/* 1. CELEBRATION BADGE MODAL */}
+      {/* State-Based Toast Overlay */}
       <AnimatePresence>
-        {activeNotification && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[99999] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 text-center text-slate-100"
+        {toastMessage && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className="fixed bottom-6 right-6 z-50 bg-slate-900/95 border border-indigo-500/50 text-indigo-200 py-3 px-5 rounded-2xl shadow-2xl flex items-center gap-2.5 backdrop-blur-md text-xs font-semibold"
           >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-slate-900 border border-slate-700/60 p-8 rounded-[32px] w-full max-w-sm space-y-6 relative overflow-hidden"
-            >
-              <div className="absolute -top-12 -left-12 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl" />
-              <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-emerald-555/10 rounded-full blur-2xl" />
-
-              <div className="flex justify-center">
-                {['green_impact', 'red_champion', 'purple_legend'].includes(activeNotification.id) ? (
-                  <div className="w-full h-72 flex justify-center -my-6 scale-90 relative">
-                    <ShieldInfinityGuardStatue 
-                      color={
-                        activeNotification.id === 'green_impact' ? 'emerald' : 
-                        activeNotification.id === 'red_champion' ? 'red' : 'purple'
-                      } 
-                      isUnlocked={true} 
-                    />
-                  </div>
-                ) : (
-                  <span className="text-6xl animate-bounce">🏆</span>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <span className="text-[9px] font-black tracking-widest text-indigo-400 font-mono uppercase bg-indigo-950 border border-indigo-900 px-3.5 py-1.5 rounded-full">
-                  {['green_impact', 'red_champion', 'purple_legend'].includes(activeNotification.id) ? '🛡️ GUARDIAN STATUE SECURED' : 'AWARD SECURELY CLAIMED'}
-                </span>
-                <h3 className="text-xl font-black uppercase text-slate-100 leading-tight">
-                  {activeNotification.title}
-                </h3>
-                <p className="text-xs text-slate-400 leading-relaxed mt-1">
-                  {activeNotification.description}
-                </p>
-              </div>
-
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-left space-y-3">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest font-mono">UNLOCKED REWARDS & CODES</span>
-                <p className="text-xs text-slate-350 leading-relaxed font-medium">
-                  {activeNotification.reward}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setActiveNotification(null)}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-400 text-white font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-lg"
-              >
-                Accept Rewards & Close
-              </button>
-            </motion.div>
+            <Sparkles className="w-4.5 h-4.5 text-indigo-400 animate-pulse" />
+            <span>{toastMessage}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 1.5 TROPHY INSPECTION VIEWPORT MODAL */}
+      {/* Trophy Celebration Modal Overlay */}
       <AnimatePresence>
-        {inspectingTrophy && (
-          <motion.div
+        {celebratingTrophy && (
+          <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setInspectingTrophy(null)}
-            className="fixed inset-0 z-[99999] bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 text-center text-slate-100"
+            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4"
           >
-            <motion.div
-              initial={{ scale: 0.9, y: 30 }}
+            <motion.div 
+              initial={{ scale: 0.9, y: 50 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 30 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-[36px] w-full max-w-lg space-y-6 relative overflow-hidden"
+              className="bg-gradient-to-b from-slate-900 to-indigo-950 border border-indigo-500/30 rounded-3xl p-6 max-w-sm w-full text-center relative overflow-hidden shadow-2xl"
             >
-              <button
-                onClick={() => setInspectingTrophy(null)}
-                className="absolute top-4 right-4 bg-slate-800 p-2 rounded-full text-slate-300 hover:text-white cursor-pointer z-50 transition-colors"
+              {/* Outer light beam glow */}
+              <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-indigo-500/20 rounded-full blur-2xl" />
+              
+              <div className="text-5xl mb-4 relative z-10 animate-bounce">{celebratingTrophy.icon}</div>
+              <h3 className="text-xl font-black text-indigo-300 uppercase tracking-wide">ACHIEVEMENT UNLOCKED</h3>
+              <p className="text-lg font-bold text-white mt-1 uppercase">{celebratingTrophy.name}</p>
+              <p className="text-xs text-slate-300 mt-3 bg-slate-950/55 p-3 rounded-xl border border-white/5 font-medium leading-relaxed">
+                {celebratingTrophy.description}
+              </p>
+
+              <button 
+                type="button" 
+                onClick={() => setCelebratingTrophy(null)}
+                className="mt-6 w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-lg"
               >
-                <X className="w-4 h-4" />
+                Inscribe to Vault
               </button>
-
-              <div className="absolute -top-24 -left-24 w-52 h-52 bg-indigo-500/10 rounded-full blur-3xl animate-pulse" />
-              <div 
-                className="absolute -bottom-24 -right-24 w-52 h-52 rounded-full blur-3xl animate-pulse" 
-                style={{ backgroundColor: `${inspectingTrophy.accentColor}15` }}
-              />
-
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black tracking-widest text-indigo-400 font-mono uppercase bg-indigo-950/80 border border-indigo-900 px-3.5 py-1.5 rounded-full mb-3">
-                  GUARDIAN CHRONICLE VESSEL
-                </span>
-                
-                {/* Detailed Larger SVG Model */}
-                <div className="w-full h-80 flex justify-center -my-4 relative">
-                  <ShieldInfinityGuardStatue color={inspectingTrophy.color} isUnlocked={claimedAwards.includes(inspectingTrophy.id)} />
-                </div>
-
-                <div className="space-y-1.5 text-center px-4">
-                  <h3 className="text-xl font-black uppercase text-slate-50 leading-tight tracking-tight">
-                    {inspectingTrophy.name} Status Statue
-                  </h3>
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-[9px] font-mono font-bold uppercase py-0.5 px-2 bg-slate-800 border border-slate-700 text-slate-400 rounded">
-                      Pedestal: {inspectingTrophy.pedestalText}
-                    </span>
-                    <span className={`text-[9px] font-mono font-black uppercase py-0.5 px-2 rounded ${
-                      claimedAwards.includes(inspectingTrophy.id) 
-                        ? 'bg-emerald-950/60 border border-emerald-500/20 text-emerald-400' 
-                        : 'bg-slate-950/60 border border-slate-800 text-slate-400'
-                    }`}>
-                      {claimedAwards.includes(inspectingTrophy.id) ? 'Status: Active Guard' : `Forges at: ${inspectingTrophy.pointsReq.toLocaleString()} PTS`}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400 leading-relaxed max-w-sm mx-auto pt-2">
-                    {inspectingTrophy.description}
-                  </p>
-                </div>
-              </div>
-
-              {/* Pedestal Inscriptions list inside box styling */}
-              <div className="bg-slate-950 border border-slate-850 p-4 rounded-2xl text-left space-y-2.5 relative">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest font-mono block">
-                  🛡️ pedestal gold-plate inscriptions
-                </span>
-                <div className="font-mono text-slate-350 space-y-1 text-[10.5px]">
-                  <div className="flex justify-between border-b border-slate-900 pb-1">
-                    <span className="text-slate-500 uppercase">Primary Title:</span>
-                    <strong className="text-slate-200">ENDLIF</strong>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-900 pb-1">
-                    <span className="text-slate-500 uppercase">Motto Inscribed:</span>
-                    <strong className="text-slate-200 text-right text-[9.5px] tracking-tight">{inspectingTrophy.motto}</strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 uppercase">Core Attribute:</span>
-                    <strong className="text-slate-200">LEADER. INFLUENCER. AMBASSADOR.</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setInspectingTrophy(null)}
-                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-705 border border-slate-700/60 text-slate-200 font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all cursor-pointer"
-                >
-                  Dismiss Terminal
-                </button>
-                
-                {(!claimedAwards.includes(inspectingTrophy.id) && points >= inspectingTrophy.pointsReq) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      claimGamingBadge(inspectingTrophy.id, inspectingTrophy.titleText, inspectingTrophy.pointsReq, inspectingTrophy.description);
-                      setInspectingTrophy(null);
-                    }}
-                    className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-400 text-white font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-lg animate-pulse"
-                  >
-                    Forge Statue (+250 XP)
-                  </button>
-                )}
-              </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 2. LIVE MEDIA VIEWER OVERLAY MODAL */}
-      <AnimatePresence>
-        {viewingItem && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setViewingItem(null)}
-            className="fixed inset-0 z-[9999] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 15 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 15 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white border border-slate-200 rounded-[28px] overflow-hidden w-full max-w-2xl text-left shadow-2xl relative"
-            >
-              <button
-                onClick={() => setViewingItem(null)}
-                className="absolute top-4 right-4 bg-slate-900/60 p-2 rounded-full text-white hover:bg-slate-900 transition-colors cursor-pointer z-50 shadow-md"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      <div className="max-w-6xl mx-auto space-y-8 relative z-10">
 
-              {/* VIDEO PLAYER VIEW */}
-              {viewingItem.type === 'video' && (
-                <div className="flex flex-col">
-                  {/* Digital Canvas Screen Area */}
-                  <div className="relative aspect-video bg-gradient-to-tr from-slate-950 via-indigo-950 to-slate-950 flex flex-col items-center justify-center overflow-hidden">
-                    <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/60 to-transparent flex items-center justify-between text-white z-10">
-                      <span className="text-[10px] font-mono tracking-wider font-extrabold text-indigo-300">
-                        📹 BROADCAST DRILL FEED ACTIVE
-                      </span>
-                      {viewingItem.fileSize && (
-                        <span className="text-[9px] font-mono opacity-80">
-                          {viewingItem.fileSize} / {viewingItem.fileName || 'stream_chunk'}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Animated Sine-Wave Audio Waveform Loop */}
-                    {videoIsPlaying ? (
-                      <div className="flex gap-1.5 items-center justify-center h-24">
-                        {[0.8, 1.4, 0.6, 2.0, 1.2, 0.4, 1.7, 0.9, 1.5, 0.7, 1.9].map((val, idx) => (
-                          <motion.div 
-                            key={idx}
-                            animate={{ scaleY: [1, val, 1] }}
-                            transition={{ repeat: Infinity, duration: 1.1, delay: idx * 0.08 }}
-                            className="bg-gradient-to-t from-indigo-500 to-emerald-450 w-1.5 rounded-full"
-                            style={{ height: '50px', transformOrigin: 'center' }}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <Play className="w-16 h-16 text-white stroke-[1.5] bg-indigo-600/60 p-4 rounded-full hover:scale-110 duration-200" />
-                    )}
-
-                    <div className="absolute bottom-16 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-                      <h4 className="text-sm font-extrabold text-white leading-tight uppercase">
-                        {viewingItem.title}
-                      </h4>
-                    </div>
-
-                    {/* Live Playback Controls */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-slate-950 py-3 px-4 flex items-center gap-4 text-white">
-                      <button 
-                        onClick={() => setVideoIsPlaying(!videoIsPlaying)}
-                        className="p-1 hover:text-indigo-400 cursor-pointer"
-                      >
-                        {videoIsPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                      </button>
-
-                      <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden relative cursor-pointer">
-                        <div 
-                          className="absolute h-full bg-indigo-500 top-0 left-0 transition-all duration-150"
-                          style={{ width: `${videoPlaybackProgress}%` }}
-                        />
-                      </div>
-
-                      <div className="text-[10px] font-mono text-slate-300">
-                        {Math.floor(videoPlaybackProgress / 20)}:{(Math.floor(videoPlaybackProgress * 3) % 60).toString().padStart(2, '0')} / {viewingItem.duration || '5:00'}
-                      </div>
-
-                      <Volume2 className="w-4 h-4 text-slate-400" />
-                    </div>
-                  </div>
-
-                  <div className="p-6 space-y-4">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <span className="text-[9px] bg-slate-100 border text-slate-650 px-2.5 py-0.5 rounded font-mono font-bold uppercase">
-                        Category: {viewingItem.category}
-                      </span>
-                      <span className="text-[9px] text-slate-400 font-mono">
-                        Published by {viewingItem.author} &bull; {viewingItem.timestamp}
-                      </span>
-                    </div>
-
-                    <div className="space-y-2">
-                      <h3 className="text-base font-black text-slate-900 leading-snug">
-                        Description & Transmission Metadata
-                      </h3>
-                      <p className="text-xs text-slate-600 leading-relaxed font-sans">
-                        This verified tactical media drill has been distributed via low-frequency citizen radio waves. Active nodes may cache local chunks to establish high-fidelity mesh routing networks in grid shelter sectors.
-                      </p>
-                    </div>
-
-                    <div className="flex justify-between items-center text-xs border-t border-slate-100 pt-4">
-                      <div className="flex gap-4 font-mono font-bold text-slate-500">
-                        <span>👀 {viewingItem.views} views</span>
-                        <span>❤️ {viewingItem.likes} likes</span>
-                      </div>
-                      <button
-                        onClick={() => {
-                          simulateItemLike(viewingItem.id, viewingItem.likes);
-                          setViewingItem(prev => prev ? { ...prev, likes: prev.likes + 1 } : null);
-                        }}
-                        className="bg-indigo-600 text-white font-extrabold text-[10px] tracking-wider uppercase px-4 py-2 rounded-xl transition-all cursor-pointer"
-                      >
-                        Appraise Video (+5 PTS)
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* POST VIEW */}
-              {viewingItem.type === 'post' && (
-                <div className="p-6 space-y-5">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-xl">
-                      <Send className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <span className="text-[9px] font-black tracking-widest text-indigo-650 font-mono uppercase">
-                        BROADCAST INFO ALERT
-                      </span>
-                      <h4 className="text-sm font-mono font-bold text-slate-450 uppercase leading-none">
-                        Category: {viewingItem.category}
-                      </h4>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-black text-slate-900 leading-tight uppercase">
-                      {viewingItem.title}
-                    </h3>
-                    
-                    {viewingItem.mediaUrl && (
-                      <div className="rounded-2xl overflow-hidden aspect-video relative max-h-56 bg-slate-100 border border-slate-200">
-                        <img src={viewingItem.mediaUrl} alt="Attached Preview" className="w-full h-full object-cover" />
-                      </div>
-                    )}
-
-                    <p className="text-xs text-slate-600 leading-relaxed font-sans p-4 bg-slate-50 border border-slate-150 rounded-2xl font-medium whitespace-pre-wrap">
-                      {viewingItem.content}
-                    </p>
-                  </div>
-
-                  <div className="flex justify-between items-center text-xs border-t border-slate-100 pt-4">
-                    <div className="font-mono text-slate-400">
-                      Timestamp: {viewingItem.timestamp}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          simulateItemLike(viewingItem.id, viewingItem.likes);
-                          setViewingItem(prev => prev ? { ...prev, likes: prev.likes + 1 } : null);
-                        }}
-                        className="bg-slate-100 border hover:bg-red-50 text-slate-700 font-extrabold text-[10px] uppercase tracking-wider px-3 py-2 rounded-xl transition-all cursor-pointer"
-                      >
-                        ❤️ Like
-                      </button>
-                      <button
-                        onClick={() => setViewingItem(null)}
-                        className="bg-indigo-600 text-white font-extrabold text-[10px] uppercase tracking-wider px-4 py-2 rounded-xl transition-all cursor-pointer"
-                      >
-                        Done
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ARTICLE VIEW */}
-              {viewingItem.type === 'article' && (
-                <div className="p-6 space-y-5 max-h-[85vh] overflow-y-auto">
-                  <div className="flex justify-between items-start border-b border-slate-100 pb-3">
-                    <div className="space-y-1">
-                      <span className="text-[9px] bg-emerald-50 border border-emerald-150 text-emerald-600 font-mono text-[8px] font-black uppercase py-0.5 px-2.5 rounded-full leading-none">
-                        📄 VERIFIED EXPERT ARTICLE
-                      </span>
-                      <h4 className="text-[10px] text-slate-400 uppercase font-mono font-bold leading-none mt-1">
-                        Category Area of Research: {viewingItem.category} &bull; Authored by {viewingItem.author}
-                      </h4>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 pr-1">
-                    <h3 className="text-xl font-black text-slate-900 leading-tight uppercase font-sans">
-                      {viewingItem.title}
-                    </h3>
-
-                    {viewingItem.mediaUrl && (
-                      <div className="w-full h-48 rounded-2xl overflow-hidden bg-slate-50 border">
-                        <img src={viewingItem.mediaUrl} alt="Header Art" className="w-full h-full object-cover" />
-                      </div>
-                    )}
-
-                    <div className="text-xs text-slate-750 font-sans leading-relaxed space-y-3 font-normal whitespace-pre-wrap bg-slate-50/50 p-4 border border-slate-200/60 rounded-2xl">
-                      {viewingItem.content}
-                    </div>
-
-                    <div className="bg-slate-900 border border-slate-850 p-4 rounded-2xl text-white space-y-1">
-                      <span className="text-[8.5px] font-black tracking-widest uppercase text-indigo-400 font-mono">
-                        Verification Signatures
-                      </span>
-                      <p className="text-[10px] text-slate-400 font-mono">
-                        Signed: Endlif Civic Safety Council Mesh Registry [SHA-256 Key Verified]
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center text-xs border-t border-slate-100 pt-4">
-                    <span className="font-mono text-slate-400">Published: {viewingItem.timestamp}</span>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          simulateItemShare(viewingItem.id, viewingItem.shares);
-                          setViewingItem(prev => prev ? { ...prev, shares: prev.shares + 1 } : null);
-                        }}
-                        className="bg-slate-50 text-slate-650 hover:bg-slate-100 border text-[9.5px] font-extrabold uppercase px-3 py-2 rounded-xl transition-all cursor-pointer"
-                      >
-                        🔁 Share Link
-                      </button>
-                      <button
-                        onClick={() => setViewingItem(null)}
-                        className="bg-indigo-600 text-white font-extrabold text-[9.5px] uppercase tracking-wider px-4 py-2 rounded-xl transition-all cursor-pointer"
-                      >
-                        Close Reader
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 3. HEAD BANNER */}
-      <div className="bg-gradient-to-tr from-slate-900 via-slate-950 to-indigo-950 text-white p-6 rounded-[28px] relative overflow-hidden border border-slate-850 shadow-sm">
-        <div className="absolute top-0 right-0 w-44 h-44 bg-indigo-550/10 rounded-full blur-[80px]" />
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-550/5 rounded-full blur-[60px]" />
-
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 font-black tracking-widest uppercase py-0.5 px-3 rounded-full font-mono">
-                ENDLIF CREATOR HUB
-              </span>
-              <span className="text-xs text-indigo-400 font-mono font-black">TRANSMITTER NETWORKS ONLINE</span>
-            </div>
-            <h2 className="text-2xl font-black tracking-tight uppercase leading-none text-slate-100">
-              CREATOR WORKSPACE
-            </h2>
-            <p className="text-xs text-slate-400 leading-relaxed max-w-xl font-medium">
-              Form your custom broadcast channel, publish off-grid survival drills, write emergency guidebooks, upload files securely, invite peers, and extract prestigious trophies.
+        {/* 1. MISSION HEADER (Completely Overhauled) */}
+        <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="space-y-1.5 text-center md:text-left">
+            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-400 bg-indigo-950/50 border border-indigo-500/20 px-3 py-1 rounded-full">
+              MISSION SYSTEM
+            </span>
+            <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight mt-1.5">
+              CREATOR HUB
+            </h1>
+            <p className="text-xs text-slate-400 font-medium italic max-w-lg">
+              "Spread verified awareness. Protect communities. Earn recognition."
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={triggerEngagementBonus}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-[10px] tracking-wider uppercase px-4 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 border border-indigo-500/30"
-              title="Add simulated engagement boosts"
-            >
-              <TrendingUp className="w-3.5 h-3.5" /> Boost Analytics
-            </button>
-            <button
-              onClick={resetAllState}
-              className="bg-slate-800 hover:bg-slate-700 hover:text-red-400 text-slate-350 p-2.5 rounded-xl border border-slate-700/60 cursor-pointer transition-all"
-              title="Reset State"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+          {/* Level Progress Circle with glowing outline & score stats */}
+          <div className="flex items-center gap-4 bg-slate-950/60 p-4 rounded-2xl border border-slate-850">
+            {/* SVG Glowing Progress Ring */}
+            <div className="relative w-16 h-16 flex items-center justify-center">
+              <svg className="w-full h-full transform -rotate-90">
+                <circle cx="32" cy="32" r="28" stroke="#1e293b" strokeWidth="4" fill="transparent" />
+                <circle 
+                  cx="32" 
+                  cy="32" 
+                  r="28" 
+                  stroke="url(#levelGlowGrad)" 
+                  strokeWidth="4.5" 
+                  fill="transparent" 
+                  strokeDasharray="175"
+                  strokeDashoffset={175 - (175 * rankInfo.progressPct) / 100}
+                  strokeLinecap="round"
+                  className="transition-all duration-1000"
+                />
+                <defs>
+                  <linearGradient id="levelGlowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#3b82f6" />
+                    <stop offset="100%" stopColor="#8b5cf6" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="absolute text-center">
+                <span className="block text-[8px] font-bold text-slate-500 uppercase leading-none">LVL</span>
+                <span className="text-sm font-black text-white leading-none">{rankInfo.current.level}</span>
+              </div>
+            </div>
+
+            <div className="text-left space-y-0.5">
+              <div className="flex items-center gap-1.5">
+                <Crown className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="text-xs font-black text-white tracking-wide uppercase">{rankInfo.current.name}</span>
+              </div>
+              <div className="text-[10px] font-mono text-slate-400">
+                <span>Total points: </span>
+                <strong className="text-indigo-300 font-extrabold">{points.toLocaleString()} PTS</strong>
+              </div>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">{verificationStatus}</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* STEP 1: CHANNEL CREATION ONBOARDING */}
-      {!hasChannel ? (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white border border-slate-200 rounded-[28px] p-6 shadow-xs text-left relative overflow-hidden space-y-5"
-        >
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-emerald-500 to-indigo-600" />
-          
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <div className="p-2.5 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-xl">
-              <Tv className="w-5 h-5 animate-pulse" />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-slate-900 text-sm tracking-tight uppercase">
-                Step 1: Setup Your Creator Channel
-              </h3>
-              <p className="text-[9px] text-slate-400 font-mono tracking-wider">CREATOR ECOSYSTEM ONBOARDING</p>
-            </div>
-          </div>
-
-          <p className="text-xs text-slate-500 leading-relaxed font-sans font-medium">
-            Choose your custom channel branding. Prepare beautiful aesthetic assets inspired by modern media applications. Enter your custom display name and unique handle to launch.
+        {/* Dynamic Warning Notice bar */}
+        <div className="bg-amber-950/30 border border-amber-500/20 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-amber-200">
+          <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <p className="font-medium">
+            <strong>System Guideline Protocol:</strong> Entertainment, advertising, or unrelated content dispatches are strictly prohibited. The AI Verification Matrix penalizes unauthorized uploads with instant Trust Score reduction.
           </p>
+        </div>
 
-          <form onSubmit={handleSetupChannel} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1 col-span-2 md:col-span-1">
-                <label className="block text-[8px] font-black text-slate-450 uppercase tracking-wider font-mono">
-                  Channel Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={setupName}
-                  onChange={(e) => setSetupName(e.target.value)}
-                  placeholder="e.g. Survivor Drills Daily, Civic Safe Patrol"
-                  className="w-full bg-slate-50 border border-slate-250 rounded-xl py-2 px-3 text-xs font-semibold text-slate-800 focus:bg-white focus:border-indigo-500 outline-none transition-colors"
-                />
-              </div>
 
-              <div className="space-y-1 col-span-2 md:col-span-1">
-                <label className="block text-[8px] font-black text-slate-450 uppercase tracking-wider font-mono">
-                  Username (@handle)
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={setupUsername}
-                  onChange={(e) => setSetupUsername(e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_@]/g, ''))}
-                  placeholder="e.g. @survivor_drills"
-                  className="w-full bg-slate-50 border border-slate-250 rounded-xl py-2 px-3 text-xs font-mono font-bold text-slate-800 focus:bg-white focus:border-indigo-500 outline-none transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1 col-span-2">
-                <label className="block text-[8px] font-black text-slate-455 uppercase tracking-wider font-mono">
-                  Channel Category
-                </label>
-                <select
-                  value={setupCategory}
-                  onChange={(e) => setSetupCategory(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-250 rounded-xl py-2 px-3 text-xs font-semibold text-slate-800 focus:bg-white focus:border-indigo-500 outline-none cursor-pointer"
-                >
-                  <option value="Education">Education</option>
-                  <option value="Gaming">Gaming</option>
-                  <option value="Technology">Technology</option>
-                  <option value="Motivation">Motivation</option>
-                  <option value="Entertainment">Entertainment</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Custom Avatar Selector */}
-            <div className="space-y-2">
-              <label className="block text-[8px] font-black text-slate-450 uppercase tracking-wider font-mono">
-                Select Profile Theme Picture
-              </label>
-              <div className="flex gap-2 pb-1 overflow-x-auto">
-                {PRESET_AVATARS.map((url, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setSelectedAvatarIdx(idx)}
-                    className={`relative w-12 h-12 rounded-full overflow-hidden border-2 shrink-0 transition-transform ${
-                      selectedAvatarIdx === idx ? 'border-indigo-600 scale-105 shadow-xs' : 'border-slate-200 opacity-60'
-                    }`}
-                  >
-                    <img src={url} alt={`Avatar preset ${idx}`} className="w-full h-full object-cover" />
-                    {selectedAvatarIdx === idx && (
-                      <div className="absolute inset-0 bg-indigo-600/20 flex items-center justify-center">
-                        <Check className="w-4 h-4 text-white stroke-[3.5]" />
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Aesthetic Cover Banner Art Selector */}
-            <div className="space-y-2">
-              <label className="block text-[8px] font-black text-slate-455 uppercase tracking-wider font-mono">
-                Select Cover Banner Art Design
-              </label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {PRESET_BANNERS.map((url, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setSelectedBannerIdx(idx)}
-                    className={`relative h-12 w-full rounded-lg overflow-hidden border-2 transition-transform ${
-                      selectedBannerIdx === idx ? 'border-indigo-600 scale-98' : 'border-slate-200 opacity-60'
-                    }`}
-                  >
-                    <img src={url} alt={`Banner preset ${idx}`} className="w-full h-full object-cover" />
-                    {selectedBannerIdx === idx && (
-                      <div className="absolute inset-0 bg-indigo-600/25 flex items-center justify-center">
-                        <span className="bg-indigo-600 text-white font-extrabold text-[8px] px-2 py-0.5 rounded tracking-wide uppercase">Active</span>
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-550 text-white font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5 active:scale-98"
-            >
-              <PlusSquare className="w-4 h-4" /> Initialize & Launch My Channel (+150 PTS)
-            </button>
-          </form>
-        </motion.div>
-      ) : (
-
-        /* DYNAMIC DASHBOARD LAYOUT */
-        <div className="space-y-6">
+        {/* MAIN SPLIT GRID (Content Editor, Verification, Dashboard, Feed, Progression, Achievements) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* A. CHANNEL PROFILE HEADER CARD */}
-          <div className="bg-white border border-slate-200 rounded-[28px] overflow-hidden shadow-sm text-left relative">
-            <div className="relative h-32 w-full bg-slate-900">
-              <img src={bannerUrl} alt="Cover Banner" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-              
-              <div className="absolute top-3 right-4 flex items-center gap-1.5 bg-slate-950/40 py-1.5 px-3.5 rounded-full backdrop-blur-md border border-white/10">
-                <span className="w-2 h-2 bg-emerald-400 rotate-45 animate-ping rounded-full" />
-                <span className="text-[7.5px] font-mono font-black text-slate-100 uppercase tracking-widest leading-none">Active Transmitter</span>
-              </div>
-            </div>
+          {/* COLUMN 1: EDITORS, AI VERIFICATION & PUBLISH CENTER (Col-span: 8) */}
+          <div className="col-span-12 lg:col-span-8 space-y-8">
+            
+            {/* 2. CREATE CONTENT SECTION */}
+            <div className="space-y-4 text-left">
+              <h3 className="text-sm font-black text-indigo-300 uppercase tracking-wider flex items-center gap-2">
+                <Sliders className="w-4.5 h-4.5" />
+                2. CREATE SECURITY CONTENT
+              </h3>
 
-            <div className="px-5 pb-5 relative">
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 -mt-9 relative z-10 text-center sm:text-left">
-                <div className="relative w-20 h-20 rounded-full border-4 border-white bg-slate-100 shadow-md overflow-hidden shrink-0">
-                  <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
-                </div>
-                
-                <div className="flex-1 min-w-0 pt-10 sm:pt-11 text-center sm:text-left">
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
-                    <span className="text-[8px] font-black text-indigo-600 bg-indigo-50 border border-indigo-150 px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono leading-none">
-                      Category: {channelCategory}
-                    </span>
-                    <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 border border-emerald-150 px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono leading-none">
-                      {rankDetails.level} ({points.toLocaleString()} PTS)
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-black text-slate-900 uppercase leading-none tracking-tight">
-                    {channelName}
-                  </h3>
-                  <p className="text-xs font-mono text-slate-400 font-bold mt-0.5">{username}</p>
-                </div>
-              </div>
-
-              {/* Score breakdown metrics inside layout */}
-              <div className="mt-5 pt-4 border-t border-slate-100 grid grid-cols-3 gap-2 text-center bg-slate-50 p-3 rounded-2xl">
-                <div>
-                  <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest font-mono">Creator Rank</span>
-                  <span className="text-xs font-black text-indigo-600 flex items-center justify-center gap-1 mt-0.5 uppercase tracking-tight leading-none">
-                    {rankDetails.icon} {rankDetails.rank}
-                  </span>
-                </div>
-                <div>
-                  <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest font-mono">Total Points</span>
-                  <span className="text-xs font-black text-slate-900 font-mono mt-0.5 block leading-none">{points.toLocaleString()} PTS</span>
-                </div>
-                <div>
-                  <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest font-mono">Milestone Gap</span>
-                  <span className="text-xs font-black text-slate-500 font-mono mt-0.5 block uppercase tracking-tight leading-none">
-                    {rankDetails.nextAward ? `-${rankDetails.nextAward.rem.toLocaleString()} PTS` : 'MAX LEVEL'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Progress visual slider */}
-              <div className="mt-4 space-y-1.5">
-                <div className="flex justify-between text-[8px] text-slate-450 uppercase font-black font-mono">
-                  <span>Award Milestone Level Progression</span>
-                  {rankDetails.nextAward ? (
-                    <span className="text-indigo-650">Next Target: {rankDetails.nextAward.id.replace('_', ' ').toUpperCase()} ({rankDetails.nextAward.req.toLocaleString()} PTS)</span>
-                  ) : (
-                    <span className="text-slate-550">Maximum Achievement Crown Unlocked</span>
-                  )}
-                </div>
-                <div className="w-full h-1.5 bg-slate-150 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-blue-500 via-emerald-500 to-indigo-600 transition-all duration-300" 
-                    style={{ width: `${Math.min(100, Math.max(5, (points / (rankDetails.nextAward ? rankDetails.nextAward.req : 500000)) * 100))}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* D. GUARDIAN STATUE TROPHIES CHAMBER */}
-          <div className="bg-slate-900 border border-slate-800 rounded-[32px] p-6 shadow-xl text-left relative overflow-hidden space-y-4">
-            {/* Ambient background glows */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[90px] pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[90px] pointer-events-none" />
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-850 pb-4 relative z-10">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Crown className="w-5 h-5 text-indigo-400" />
-                  <h3 className="font-extrabold text-slate-100 text-sm tracking-tight uppercase">
-                    🛡️ Guardian Award Trophies Chamber
-                  </h3>
-                </div>
-                <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wider">
-                  ACTIVE AMBASSADORS ACHIEVE THESE PRESTIGIOUS HIGH-TECH ENEMY-DETERRENTS
-                </p>
-              </div>
-              <div className="text-[10px] font-mono text-slate-400 bg-slate-950 px-3 py-1 rounded-full border border-slate-800">
-                Chamber Rating: <strong className="text-indigo-400 font-black">{claimedAwards.filter(id => ['green_impact', 'red_champion', 'purple_legend'].includes(id)).length}/3 ACTIVE TROPHIES</strong>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-350 leading-relaxed font-sans max-w-3xl relative z-10">
-              Each dynamic armor figurine is constructed on the secure grid network when corresponding safety milestones are forged. Claimed trophies activate high-voltage glowing power loops and emit premium digital & physical security coordinates. (Blue Guardian award is excluded as requested).
-            </p>
-
-            {/* Three Pedestal Columns */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2 relative z-10">
-              {GUARDIAN_TROPHIES.map((trophy) => {
-                const isClaimed = claimedAwards.includes(trophy.id);
-                const isClaimable = points >= trophy.pointsReq && !isClaimed;
-                const progressPct = Math.min(100, Math.floor((points / trophy.pointsReq) * 100));
-
-                return (
-                  <div 
-                    key={trophy.id}
-                    className={`relative flex flex-col items-center bg-slate-950/80 border rounded-2xl p-4 overflow-hidden transition-all duration-300 group ${
-                      isClaimed 
-                        ? trophy.glowColor 
-                        : 'border-slate-850 hover:border-slate-800 shadow-inner'
-                    }`}
-                  >
-                    {/* Glowing color banner background inside card */}
-                    {isClaimed && (
-                      <div 
-                        className="absolute inset-0 bg-radial transition-opacity duration-350 pointer-events-none opacity-10 group-hover:opacity-20"
-                        style={{ backgroundImage: `radial-gradient(circle, ${trophy.accentColor} 0%, transparent 70%)` }}
-                      />
-                    )}
-
-                    {/* Lock holographic grid watermark */}
-                    {!isClaimed && (
-                      <div className="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.8)_2px,transparent_2px),linear-gradient(90deg,rgba(15,23,42,0.8)_2px,transparent_2px)] bg-[size:16px_16px] pointer-events-none opacity-30" />
-                    )}
-
-                    {/* Locked Indicator Cover */}
-                    {!isClaimed && (
-                      <div className="absolute top-3 right-3 bg-slate-900/90 border border-slate-850 p-1.5 rounded-lg text-slate-500 z-10">
-                        <Lock className="w-3.5 h-3.5" />
-                      </div>
-                    )}
-
-                    {/* Unlocked Active Emblem */}
-                    {isClaimed && (
-                      <div className="absolute top-3 right-3 bg-slate-900 border border-slate-800 p-1 rounded-lg text-slate-100 z-10 font-bold font-mono text-[6.5px] uppercase tracking-wider flex items-center gap-1">
-                        <Check className="w-2.5 h-2.5 text-emerald-400 stroke-[3]" /> Active
-                      </div>
-                    )}
-
-                    {/* Trophy Name Header */}
-                    <div className="text-center w-full pb-2 mb-2 border-b border-slate-900/60 z-10">
-                      <span className={`block text-[7px] font-black uppercase tracking-widest font-mono ${isClaimed ? trophy.accentText : 'text-slate-500'}`}>
-                        {trophy.titleText}
-                      </span>
-                      <h4 className="text-xs font-extrabold text-slate-200 mt-0.5 group-hover:text-white transition-colors">
-                        {trophy.name} Statue
-                      </h4>
-                    </div>
-
-                    {/* Custom SVG Armored Figure */}
-                    <div className="w-full relative py-1 flex items-center justify-center cursor-pointer" onClick={() => setInspectingTrophy(trophy)}>
-                      <ShieldInfinityGuardStatue color={trophy.color} isUnlocked={isClaimed} />
-                      
-                      {/* Interactive inspecting overlay zoom icon */}
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950/20 backdrop-blur-[1px] rounded-lg">
-                        <div className="bg-indigo-600 text-white font-extrabold text-[8px] uppercase tracking-wider py-1.5 px-3 rounded-lg flex items-center gap-1 shadow-md">
-                          <Eye className="w-3 h-3" /> Inspect Statue
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Inscribed Octagonal Pedestal base visual representation in UI */}
-                    <div className="w-full bg-slate-900/90 border border-slate-850 p-2 rounded-xl text-center flex flex-col items-center justify-center relative mt-2 z-10 select-none">
-                      <span className="text-[11px] font-black font-mono tracking-widest text-slate-200 leading-none">ENDLIF</span>
-                      <span className="text-[6.5px] uppercase font-mono tracking-wider text-slate-500 font-bold block mt-0.5">LEADER. INFLUENCER. AMBASSADOR.</span>
-                      <span className={`text-[6px] uppercase font-mono text-center tracking-normal ${isClaimed ? trophy.accentText : 'text-slate-600'} leading-none mt-1`}>
-                        {isClaimed ? trophy.motto : 'INSCRIBED STATUE RECORD'}
-                      </span>
-                    </div>
-
-                    {/* Progress slider or Claim Button */}
-                    <div className="w-full mt-3 z-10">
-                      {isClaimed ? (
-                        <button
-                          type="button"
-                          onClick={() => setInspectingTrophy(trophy)}
-                          className="w-full py-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 font-extrabold text-[8px] uppercase tracking-wider rounded-lg transition-all"
-                        >
-                          Inspect Chronicle Inscription
-                        </button>
-                      ) : isClaimable ? (
-                        <button
-                          type="button"
-                          onClick={() => claimGamingBadge(trophy.id, trophy.titleText, trophy.pointsReq, trophy.description)}
-                          className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-500 border border-emerald-400 text-white font-black text-[8.5px] uppercase tracking-widest rounded-lg transition-all animate-pulse shadow-md"
-                        >
-                          Claim Guardian Trophy
-                        </button>
-                      ) : (
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[6.5px] font-bold uppercase tracking-wider font-mono text-slate-500">
-                            <span>Points Forage</span>
-                            <span>{points.toLocaleString()} / {trophy.pointsReq.toLocaleString()} PTS ({progressPct}%)</span>
-                          </div>
-                          <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden">
-                            <div className="h-full bg-slate-800 transition-all duration-300" style={{ width: `${progressPct}%` }} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                  </div>
-                );
-              })}
-            </div>
-
-          </div>
-
-          {/* B. ANALYTICS STATS OVERVIEW ROW */}
-          <div className="bg-white border border-slate-200 rounded-[28px] p-6 shadow-sm text-left relative overflow-hidden space-y-4">
-            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-              <Users className="w-5 h-5 text-indigo-600" />
-              <div>
-                <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider leading-none">Community Statistics & Growth</h4>
-                <p className="text-[9px] font-mono text-slate-400 uppercase leading-none mt-1">Real-time engagement telemetry</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 text-left">
-                <span className="text-[8.5px] font-bold text-slate-450 uppercase font-mono tracking-wider block">👥 Community Members</span>
-                <span className="text-xl font-black text-slate-900 font-mono mt-1 block leading-none">{communityMembers.toLocaleString()}</span>
-                <span className="text-[8.5px] text-slate-400 font-sans block mt-1.5">Subscribers + active followers</span>
-              </div>
-
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 text-left relative overflow-hidden">
-                <div className="absolute top-2 right-2">
-                  <Flame className="w-4 h-4 text-orange-500 animate-pulse" />
-                </div>
-                <span className="text-[8.5px] font-bold text-slate-455 uppercase font-mono tracking-wider block">🔥 Active Members</span>
-                <span className="text-xl font-black text-slate-900 font-mono mt-1 block leading-none">{activeMembers.toLocaleString()}</span>
-                <span className="text-[8.5px] text-orange-600 font-extrabold font-mono block mt-1.5 uppercase leading-none">HIGH ENGAGEMENT</span>
-              </div>
-
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 text-left">
-                <span className="text-[8.5px] font-bold text-slate-450 uppercase font-mono tracking-wider block">⚡ Weekly Growth</span>
-                <span className="text-xl font-black text-emerald-600 font-mono mt-1 block leading-none">{weeklyGrowth}</span>
-                <span className="text-[8.5px] text-slate-400 font-sans block mt-1.5">Reach acceleration rate</span>
-              </div>
-
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 text-left">
-                <span className="text-[8.5px] font-bold text-slate-450 uppercase font-mono tracking-wider block">🔔 Followers Base</span>
-                <span className="text-xl font-black text-slate-900 font-mono mt-1 block leading-none">{subscribers}</span>
+              {/* Three futuristic selection cards side-by-side */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* News Upload */}
                 <button
                   type="button"
                   onClick={() => {
-                    setPoints(prev => prev + 50);
-                    setSubscribers(prev => prev + 1);
-                    showSuccessToast("Growth simulator triggered: Autocast +1 Subscriber! (+50 PTS)");
+                    setActiveCardType('news');
+                    setVerificationState('idle');
+                    setVerificationProgress(0);
                   }}
-                  className="mt-1.5 w-full py-1 bg-slate-900 hover:bg-slate-800 text-[8px] font-black uppercase text-slate-100 rounded-md tracking-wider transition-all"
-                >
-                  Join Crew (+50 PTS)
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-mono py-2 border-t border-slate-150 text-slate-500 font-semibold bg-slate-50/50 rounded-xl">
-              <div>VIEWS: <strong className="text-slate-800">{views.toLocaleString()}</strong></div>
-              <div>LIKES: <strong className="text-slate-800">{likes.toLocaleString()}</strong></div>
-              <div>SHARES: <strong className="text-slate-800">{shares.toLocaleString()}</strong></div>
-            </div>
-          </div>
-
-          {/* C. REARRANGED: TWO COLUMN WORKBENCH & MEDIA HUB */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            
-            {/* COLUMN 1 - MAIN WORKSPACE: FILE PUBLISHER + TRANSMISSION FEED ARCHIVE (Col-span: 12 -> 8 on desktop) */}
-            <div className="col-span-12 lg:col-span-8 space-y-6">
-              
-              {/* STUDIO CARD: WITH DEDICATED UPLOAD SLIDERS AND PARSER WORKFLOWS */}
-              <div className="bg-white border border-slate-200 rounded-[28px] p-6 shadow-sm text-left relative overflow-hidden space-y-4">
-                <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
-
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                  <div className="space-y-1">
-                    <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-1.5 uppercase tracking-wider">
-                      <Sliders className="w-4.5 h-4.5 text-indigo-600" /> Creator Upload Studio
-                    </h3>
-                    <p className="text-[9px] font-mono text-slate-400 uppercase leading-none">Aesthetic content distribution engine</p>
-                  </div>
-
-                  {/* Aesthetic tab switcher */}
-                  <div className="bg-slate-100 p-1 rounded-xl flex gap-1 self-start select-none">
-                    <button
-                      type="button"
-                      onClick={() => { 
-                        setStudioTab('video'); 
-                        setUploadCategory('Education'); 
-                        setUploadFileName(''); 
-                        setUploadFileBase64('');
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-                        studioTab === 'video' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      <Video className="w-3.5 h-3.5" /> Video (+150 PTS)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { 
-                        setStudioTab('post'); 
-                        setUploadCategory('Motivation'); 
-                        setUploadFileName(''); 
-                        setUploadFileBase64('');
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-                        studioTab === 'post' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      <Send className="w-3.5 h-3.5" /> Post (+50 PTS)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { 
-                        setStudioTab('article'); 
-                        setUploadCategory('Technology'); 
-                        setUploadFileName(''); 
-                        setUploadFileBase64('');
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-                        studioTab === 'article' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      <BookOpen className="w-3.5 h-3.5" /> Book Article (+200 PTS)
-                    </button>
-                  </div>
-                </div>
-
-                {/* HIGH FIDELITY DRAG AND DROP FILE UPLOAD AREA */}
-                <div 
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onClick={triggerUploadInputClick}
-                  className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 ${
-                    isDragging 
-                      ? 'border-indigo-500 bg-indigo-50/40' 
-                      : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-350'
+                  className={`p-4 rounded-2xl text-left border transition-all duration-300 flex flex-col justify-between h-36 relative overflow-hidden group ${
+                    activeCardType === 'news' 
+                      ? 'bg-slate-900 border-indigo-500/60 shadow-[0_0_20px_rgba(59,130,246,0.15)]' 
+                      : 'bg-slate-900/40 border-slate-800 hover:border-slate-700 hover:bg-slate-900/60'
                   }`}
                 >
-                  <input 
-                    type="file" 
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden" 
-                    accept={
-                      studioTab === 'video' 
-                        ? 'video/*' 
-                        : studioTab === 'article' 
-                          ? 'text/plain,text/markdown,.md,.txt' 
-                          : 'image/*'
-                    }
-                  />
-
-                  <div className="flex flex-col items-center justify-center space-y-2">
-                    <div className="p-3 bg-white rounded-full border shadow-sm">
-                      <Upload className="w-5 h-5 text-indigo-600" />
-                    </div>
-
-                    <div className="space-y-1">
-                      <p className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">
-                        {uploadFileName ? `Selected: ${uploadFileName}` : `Click or Drag & Drop to Upload ${studioTab.toUpperCase()}`}
-                      </p>
-                      
-                      <p className="text-[10px] text-slate-450 font-medium">
-                        {studioTab === 'video' && "Accepts high-fidelity .mp4, .mov, or .avi formats"}
-                        {studioTab === 'post' && "Accepts visual header image attachments (.png, .jpg, .svg)"}
-                        {studioTab === 'article' && "Auto-import local article draft .md or .txt files directly!"}
-                      </p>
-                    </div>
-
-                    {uploadFileName && (
-                      <span className="text-[9px] font-mono font-black uppercase bg-indigo-50 border border-indigo-150 px-2.5 py-0.5 rounded-full text-indigo-700">
-                        File linked: {uploadFileSize || 'Calculating...'}
-                      </span>
-                    )}
+                  <div className="space-y-1 relative z-10">
+                    <span className="text-xl">📰</span>
+                    <h4 className="text-xs font-black text-white uppercase tracking-wide mt-1">News Upload</h4>
+                    <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
+                      Verify print clippings or external newspaper clippings.
+                    </p>
                   </div>
-                </div>
+                  <div className="flex items-center justify-between w-full relative z-10 mt-2">
+                    <span className="text-[9px] font-mono text-indigo-400 font-extrabold">+100 Points</span>
+                    <span className="text-[9px] font-bold text-slate-400 group-hover:text-white transition-colors flex items-center gap-1">
+                      Load Form <ArrowRight className="w-2.5 h-2.5" />
+                    </span>
+                  </div>
+                </button>
 
-                <form onSubmit={handleStudioUploadSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3.5">
-                    
-                    {/* Block Name title info */}
-                    <div className="space-y-1 col-span-2">
-                      <label className="block text-[8px] font-black text-slate-450 uppercase tracking-widest font-mono">
-                        {studioTab === 'video' ? 'Survival Drill Video Title' : studioTab === 'post' ? 'Alert Brief Title' : 'Research Guide Article Title'}
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={uploadTitle}
-                        onChange={(e) => setUploadTitle(e.target.value)}
-                        placeholder={
-                          studioTab === 'video' 
-                            ? "e.g. Ad-hoc Antenna Setups for Off-Grid Transmission" 
-                            : studioTab === 'post' 
-                              ? "e.g. Dynamic Warning: Active Regional Weather Shifts" 
-                              : "e.g. Gravity Water Purifier Filtration Sandbox Drills"
-                        }
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold text-slate-800 focus:bg-white focus:border-indigo-500 outline-none transition-colors"
+                {/* Awareness Article */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveCardType('article');
+                    setVerificationState('idle');
+                    setVerificationProgress(0);
+                  }}
+                  className={`p-4 rounded-2xl text-left border transition-all duration-300 flex flex-col justify-between h-36 relative overflow-hidden group ${
+                    activeCardType === 'article' 
+                      ? 'bg-slate-900 border-indigo-500/60 shadow-[0_0_20px_rgba(59,130,246,0.15)]' 
+                      : 'bg-slate-900/40 border-slate-800 hover:border-slate-700 hover:bg-slate-900/60'
+                  }`}
+                >
+                  <div className="space-y-1 relative z-10">
+                    <span className="text-xl">📖</span>
+                    <h4 className="text-xs font-black text-white uppercase tracking-wide mt-1">Awareness Article</h4>
+                    <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
+                      Publish comprehensive guidelines, prep materials, or cyber tips.
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between w-full relative z-10 mt-2">
+                    <span className="text-[9px] font-mono text-emerald-400 font-extrabold">+200 Points</span>
+                    <span className="text-[9px] font-bold text-slate-400 group-hover:text-white transition-colors flex items-center gap-1">
+                      Load Form <ArrowRight className="w-2.5 h-2.5" />
+                    </span>
+                  </div>
+                </button>
+
+                {/* Safety Post */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveCardType('post');
+                    setVerificationState('idle');
+                    setVerificationProgress(0);
+                  }}
+                  className={`p-4 rounded-2xl text-left border transition-all duration-300 flex flex-col justify-between h-36 relative overflow-hidden group ${
+                    activeCardType === 'post' 
+                      ? 'bg-slate-900 border-indigo-500/60 shadow-[0_0_20px_rgba(59,130,246,0.15)]' 
+                      : 'bg-slate-900/40 border-slate-800 hover:border-slate-700 hover:bg-slate-900/60'
+                  }`}
+                >
+                  <div className="space-y-1 relative z-10">
+                    <span className="text-xl">📢</span>
+                    <h4 className="text-xs font-black text-white uppercase tracking-wide mt-1">Safety Post</h4>
+                    <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
+                      Distribute short tips, poster designs, infographics, and urgent dispatches.
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between w-full relative z-10 mt-2">
+                    <span className="text-[9px] font-mono text-amber-400 font-extrabold">+50 Points</span>
+                    <span className="text-[9px] font-bold text-slate-400 group-hover:text-white transition-colors flex items-center gap-1">
+                      Load Form <ArrowRight className="w-2.5 h-2.5" />
+                    </span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Dynamic Form Editor rendering based on active tab */}
+              <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 md:p-6 backdrop-blur-md text-left">
+                
+                {activeCardType === 'news' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                      <h4 className="text-xs font-black text-indigo-300 uppercase tracking-wider flex items-center gap-2">
+                        <span>📰 News Verification Slate</span>
+                      </h4>
+                      <span className="text-[9px] font-mono text-slate-500">CRITERION: NEWSPAPER SCREENSHOT REQUIRED</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-bold uppercase text-slate-400">News Title / Headline</label>
+                        <input 
+                          type="text" 
+                          value={newsTitle}
+                          onChange={(e) => setNewsTitle(e.target.value)}
+                          placeholder="e.g. Flash Flood Emergency along Highway 10" 
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-bold uppercase text-slate-400">News Source Reference Link</label>
+                        <input 
+                          type="text" 
+                          value={newsLink}
+                          onChange={(e) => setNewsLink(e.target.value)}
+                          placeholder="https://example-news.org/alerts/flood-update" 
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Screenshot File Upload & Drag and Drop Box */}
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-bold uppercase text-slate-400">Newspaper Screenshot (Simulate Upload)</label>
+                      <div 
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => handleScreenshotDrop(e, 'news')}
+                        className="border-2 border-dashed border-slate-800 hover:border-slate-700 bg-slate-950/55 rounded-2xl p-6 text-center transition-all cursor-pointer relative overflow-hidden"
+                      >
+                        {newsScreenshot ? (
+                          <div className="space-y-2">
+                            <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto animate-pulse" />
+                            <p className="text-xs text-white font-bold uppercase">{newsScreenshotName || 'clipping_file_screenshot.png'}</p>
+                            <button 
+                              type="button" 
+                              onClick={(e) => { e.stopPropagation(); setNewsScreenshot(''); setNewsScreenshotName(''); }}
+                              className="text-[10px] text-rose-400 underline font-bold hover:text-rose-300"
+                            >
+                              Remove file
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="cursor-pointer block space-y-2">
+                            <Upload className="w-6 h-6 text-slate-500 mx-auto" />
+                            <p className="text-xs text-slate-300 font-bold">Drag and drop newspaper file, or browse</p>
+                            <p className="text-[10px] text-slate-500">Supports JPG, PNG clippings (Max 5MB)</p>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              onChange={(e) => handleScreenshotSelect(e, 'news')}
+                              className="hidden" 
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeCardType === 'article' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                      <h4 className="text-xs font-black text-emerald-300 uppercase tracking-wider flex items-center gap-2">
+                        <span>📖 Article Drafting Console</span>
+                      </h4>
+                      <span className="text-[9px] font-mono text-slate-500">CRITERION: ORIGINAL KNOWLEDGE COMPILATION</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-bold uppercase text-slate-400">Article Title / Guide Name</label>
+                      <input 
+                        type="text" 
+                        value={articleTitle}
+                        onChange={(e) => setArticleTitle(e.target.value)}
+                        placeholder="e.g. Master Guidelines for Cybersecurity Shield Setup" 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 transition-colors"
                       />
                     </div>
 
-                    <div className="space-y-1 col-span-2 md:col-span-1">
-                      <label className="block text-[8px] font-black text-slate-450 uppercase tracking-widest font-mono">
-                        Category Area
-                      </label>
-                      <select
-                        value={uploadCategory}
-                        onChange={(e) => setUploadCategory(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold text-slate-800 focus:bg-white focus:border-indigo-500 cursor-pointer outline-none"
-                      >
-                        <option value="Education">Education</option>
-                        <option value="Technology">Technology</option>
-                        <option value="Motivation">Motivation</option>
-                        <option value="Entertainment">Entertainment</option>
-                      </select>
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-bold uppercase text-slate-400">Guide Book / Survival Tips Content</label>
+                      <textarea 
+                        rows={4}
+                        value={articleBody}
+                        onChange={(e) => setArticleBody(e.target.value)}
+                        placeholder="Detail preparation steps, emergency safety precautions, checklists, or critical cybersecurity routines..."
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500 transition-colors resize-none font-mono"
+                      />
                     </div>
 
-                    <div className="space-y-1 col-span-2 md:col-span-1">
-                      <label className="block text-[8px] font-black text-slate-450 uppercase tracking-widest font-mono">
-                        {studioTab === 'video' ? 'Drill Video Length' : 'Broadcast Priority'}
-                      </label>
-                      {studioTab === 'video' ? (
-                        <input
-                          type="text"
-                          required
-                          value={uploadDuration}
-                          onChange={(e) => setUploadDuration(e.target.value)}
-                          placeholder="e.g. 10:25"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-mono font-bold text-slate-800 focus:bg-white focus:border-indigo-500 outline-none"
-                        />
-                      ) : (
-                        <select className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold text-slate-800 cursor-pointer outline-none">
-                          <option>⚡ Priority High Fail-safe Alert</option>
-                          <option>🔵 General Awareness Broadcast</option>
-                          <option>📖 Educational Digest Manual</option>
-                        </select>
-                      )}
-                    </div>
-
-                    {/* Substantive text area for posts and articles */}
-                    {studioTab !== 'video' && (
-                      <div className="space-y-1 col-span-2">
-                        <label className="block text-[8px] font-black text-slate-450 uppercase tracking-widest font-mono">
-                          {studioTab === 'post' ? 'Alert Body (Character Limit 280)' : 'Comprehensive Article Body Text Markdown'}
-                        </label>
-                        <textarea
-                          required
-                          rows={studioTab === 'post' ? 3 : 5}
-                          value={uploadContent}
-                          onChange={(e) => setUploadContent(e.target.value)}
-                          placeholder={
-                            studioTab === 'post' 
-                              ? "Write brief updates for active followers..." 
-                              : "Produce detailed instructions for water purification, medicine formulation, or communications setup. Supports markdown styles."
-                          }
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs font-medium text-slate-805 focus:bg-white focus:border-indigo-500 outline-none transition-colors leading-relaxed"
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* PREVIEW CONTAINER FOR IMAGE ATTACHMENTS */}
-                  {uploadFileBase64 && (studioTab === 'post' || studioTab === 'article') && (
-                    <div className="p-3 bg-slate-50 rounded-2xl border border-slate-150 space-y-1.5">
-                      <span className="block text-[7.5px] font-black text-slate-400 uppercase tracking-widest font-mono">
-                        Attachment Media Preview
-                      </span>
-                      <div className="relative aspect-video max-h-32 rounded-lg overflow-hidden border bg-white max-w-xs">
-                        <img src={uploadFileBase64} alt="Upload thumb draft" className="w-full h-full object-cover" />
+                    {/* Tag checklists */}
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-bold uppercase text-slate-400">Core Awareness Focus Tags</label>
+                      <div className="flex flex-wrap gap-3">
                         <button
                           type="button"
-                          onClick={() => setUploadFileBase64('')}
-                          className="absolute top-1 right-1 bg-slate-900/80 hover:bg-slate-900 p-1 rounded-full text-white cursor-pointer"
+                          onClick={() => setArticleTags(t => ({ ...t, disasterPrep: !t.disasterPrep }))}
+                          className={`px-3 py-1.5 rounded-xl border text-[10px] font-bold uppercase transition-all ${
+                            articleTags.disasterPrep 
+                              ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-300' 
+                              : 'bg-slate-950 border-slate-850 text-slate-500'
+                          }`}
                         >
-                          <X className="w-3 h-3" />
+                          Disaster Preparedness
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setArticleTags(t => ({ ...t, safetyTips: !t.safetyTips }))}
+                          className={`px-3 py-1.5 rounded-xl border text-[10px] font-bold uppercase transition-all ${
+                            articleTags.safetyTips 
+                              ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-300' 
+                              : 'bg-slate-950 border-slate-850 text-slate-500'
+                          }`}
+                        >
+                          Safety Tips
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setArticleTags(t => ({ ...t, cyberAwareness: !t.cyberAwareness }))}
+                          className={`px-3 py-1.5 rounded-xl border text-[10px] font-bold uppercase transition-all ${
+                            articleTags.cyberAwareness 
+                              ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-300' 
+                              : 'bg-slate-950 border-slate-850 text-slate-500'
+                          }`}
+                        >
+                          Cyber Awareness
                         </button>
                       </div>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {/* PROGRESS ENGINE WITH LIVE INTERACTIVE FEEDBACK */}
-                  {uploadingState !== 'idle' && (
-                    <div className="bg-slate-55/70 p-4 rounded-2xl border border-slate-150 space-y-2">
-                      <div className="flex items-center justify-between text-xs font-mono font-bold leading-none">
-                        <span className="text-indigo-600 flex items-center gap-1.5 uppercase tracking-wide">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
-                          {uploadingState === 'processing' ? 'Encoding payload & emitting RF chunks...' : 'Transmission Approved! Open feed.'}
-                        </span>
-                        <span className="text-slate-600">{uploadFileProgress}%</span>
-                      </div>
-                      
-                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-indigo-500 to-emerald-450 transition-all duration-150"
-                          style={{ width: `${uploadFileProgress}%` }}
+                {activeCardType === 'post' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                      <h4 className="text-xs font-black text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                        <span>📢 Bullet Safety Dispatcher</span>
+                      </h4>
+                      <span className="text-[9px] font-mono text-slate-500">CRITERION: RAPID FIELD DISSEMINATION</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-bold uppercase text-slate-400">Post Header</label>
+                        <input 
+                          type="text" 
+                          value={postTitle}
+                          onChange={(e) => setPostTitle(e.target.value)}
+                          placeholder="e.g. Critical Safe Zone Alert" 
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 transition-colors"
                         />
                       </div>
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-bold uppercase text-slate-400">Dispatch Type</label>
+                        <select 
+                          value={postType}
+                          onChange={(e) => setPostType(e.target.value as any)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 transition-colors"
+                        >
+                          <option value="emergency_tips">Emergency Field Tips</option>
+                          <option value="infographics">Infographics File</option>
+                          <option value="posters">Awareness Poster</option>
+                        </select>
+                      </div>
                     </div>
-                  )}
 
-                  <button
-                    type="submit"
-                    disabled={uploadingState !== 'idle'}
-                    className="w-full py-3.5 bg-slate-900 border border-slate-850 hover:bg-slate-800 text-slate-100 font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-40"
-                  >
-                    <Sparkles className="w-4 h-4 text-amber-400 stroke-[2.5]" /> Launch {studioTab.toUpperCase()} Broadcast
-                  </button>
-                </form>
-              </div>
-
-              {/* TRANSMISSION LIVE FEED ARCHIVE */}
-              <div className="bg-white border border-slate-200 rounded-[28px] p-6 shadow-sm text-left relative overflow-hidden space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-2">
-                  <div className="space-y-1">
-                    <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-1.5 leading-none">
-                      <Tv className="w-4.5 h-4.5 text-indigo-650" /> Live Feed Archive
-                    </h3>
-                    <p className="text-[9px] font-mono text-slate-400 uppercase leading-none mt-1">Filter published awareness broadcasts</p>
-                  </div>
-
-                  <div className="flex gap-1 bg-slate-50 border border-slate-200/60 p-1 rounded-xl self-start">
-                    {['all', 'video', 'post', 'article'].map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setFeedFilterTab(t as any)}
-                        className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg tracking-wider transition-all cursor-pointer ${
-                          feedFilterTab === t 
-                            ? 'bg-slate-900 text-slate-100 shadow-sm' 
-                            : 'text-slate-550 hover:text-slate-800'
-                        }`}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Grid Layout fitting pristine standards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {activeFilteredItems.length === 0 ? (
-                    <div className="col-span-2 text-center py-10 text-xs text-slate-400 font-medium">
-                      No {feedFilterTab} blocks are currently published to Endlif antennae files. Use the Setup Studio to publish!
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-bold uppercase text-slate-400">Safety Message Brief (Max 280 chars)</label>
+                      <textarea 
+                        rows={3}
+                        maxLength={280}
+                        value={postMessage}
+                        onChange={(e) => setPostMessage(e.target.value)}
+                        placeholder="Distribute urgent warnings, posters, contact coordinates, or immediate shelter addresses..."
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-500 transition-colors resize-none"
+                      />
                     </div>
-                  ) : (
-                    activeFilteredItems.map((item) => (
+
+                    {/* Poster file attachment drop zone */}
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-bold uppercase text-slate-400">Poster / Infographic File (Drag & Drop)</label>
                       <div 
-                        key={item.id} 
-                        onClick={() => setViewingItem(item)}
-                        className="group bg-slate-50 border border-slate-150 rounded-2xl flex flex-col justify-between overflow-hidden text-xs transition-all duration-200 hover:shadow-md hover:border-indigo-250 cursor-pointer text-left relative"
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => handleScreenshotDrop(e, 'post')}
+                        className="border-2 border-dashed border-slate-800 hover:border-slate-700 bg-slate-950/55 rounded-2xl p-4 text-center transition-all cursor-pointer relative overflow-hidden"
                       >
-                        {/* Interactive Thumbnail Previews with real indicators */}
-                        <div className="relative aspect-video bg-slate-900 w-full overflow-hidden flex items-center justify-center">
-                          {item.mediaUrl ? (
-                            <img src={item.mediaUrl} alt="Thumbnail preview" className="w-full h-full object-cover group-hover:scale-105 duration-300" />
-                          ) : item.type === 'video' ? (
-                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/60 to-purple-950/80 flex flex-col items-center justify-center p-3 text-center">
-                              <Video className="w-8 h-8 text-white/90 drop-shadow-md mb-1 stroke-[1.5]" />
-                              <span className="text-[8.5px] font-mono text-indigo-200 uppercase tracking-widest truncate max-w-full">
-                                {item.fileName || 'tactical_drill.mp4'}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="absolute inset-0 bg-gradient-to-br from-slate-800/20 to-slate-900/40 flex flex-col items-center justify-center p-3 text-center">
-                              {item.type === 'article' ? <BookOpen className="w-8 h-8 text-emerald-555 opacity-70 mb-1" /> : <Send className="w-8 h-8 text-pink-555 opacity-70 mb-1" />}
-                              <span className="text-[8.5px] font-mono text-slate-400 uppercase tracking-wide">Endlif Citizen Feed</span>
-                            </div>
-                          )}
-
-                          {/* Float duration or type labels */}
-                          <div className="absolute bottom-2 right-2 bg-black/70 text-white font-mono text-[8px] font-black px-1.5 py-0.5 rounded tracking-wide leading-none select-none">
-                            {item.type === 'video' ? `📹 ${item.duration || '12:00'}` : item.type === 'article' ? '📝 ARTICLE' : '📢 POST'}
-                          </div>
-                        </div>
-
-                        <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                          <div className="space-y-1.5">
-                            <div className="flex items-center justify-between gap-2.5">
-                              <span className="text-[7.5px] font-black text-slate-400 uppercase font-mono bg-slate-200/70 px-2 py-0.5 rounded leading-none">
-                                {item.category}
-                              </span>
-
-                              <span className="text-[7px] text-slate-450 font-mono">
-                                {item.timestamp.split(' ')[0]}
-                              </span>
-                            </div>
-
-                            <h4 className="font-extrabold text-slate-900 text-xs uppercase leading-tight group-hover:text-indigo-600 transition-colors line-clamp-2">
-                              {item.title}
-                            </h4>
-
-                            {item.content && (
-                              <p className="text-[10px] text-slate-500 font-sans leading-relaxed line-clamp-2">
-                                {item.content}
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="pt-2 border-t border-slate-150 flex items-center justify-between text-[9px] font-mono font-bold">
-                            <div className="text-slate-400 flex gap-2">
-                              <span>👀 {item.views}</span>
-                              <span>❤️ {item.likes}</span>
-                            </div>
-
-                            <div 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                simulateItemLike(item.id, item.likes);
-                              }}
-                              className="text-indigo-650 hover:text-indigo-500 bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100 py-1 px-2.5 rounded-lg transition-all cursor-pointer"
+                        {postPoster ? (
+                          <div className="space-y-1">
+                            <Check className="w-6 h-6 text-emerald-400 mx-auto" />
+                            <p className="text-[10px] text-white font-bold uppercase">{postPosterName || 'poster_infographic_design.png'}</p>
+                            <button 
+                              type="button" 
+                              onClick={(e) => { e.stopPropagation(); setPostPoster(''); setPostPosterName(''); }}
+                              className="text-[9px] text-rose-400 underline font-bold hover:text-rose-300"
                             >
-                              ❤️ Appraise (+5)
-                            </div>
+                              Clear File
+                            </button>
                           </div>
-                        </div>
-
-                        {item.isCustom && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteCustomItem(item.id);
-                            }}
-                            className="absolute top-2 right-2 bg-slate-900/60 hover:bg-slate-900 p-1.5 rounded-full text-white transition-colors cursor-pointer shadow-sm z-10"
-                            title="Delete article draft"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                        ) : (
+                          <label className="cursor-pointer block space-y-1">
+                            <ImageIcon className="w-5 h-5 text-slate-500 mx-auto" />
+                            <p className="text-[11px] text-slate-300 font-bold">Attach visual safety poster or Infographic</p>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              onChange={(e) => handleScreenshotSelect(e, 'post')}
+                              className="hidden" 
+                            />
+                          </label>
                         )}
                       </div>
-                    ))
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+
+            {/* 3. AI VERIFICATION PANEL & 4. PUBLISH CENTER */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+              
+              {/* AI Verification Panel card */}
+              <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 backdrop-blur-md flex flex-col justify-between space-y-4">
+                <div className="space-y-1">
+                  <span className="text-[9px] font-black uppercase text-indigo-400 tracking-wider">PRE-PUBLISH ASSURANCE</span>
+                  <h4 className="text-xs font-black text-white uppercase tracking-wide">3. AI Verification Panel</h4>
+                  <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
+                    Run automated scanning sequence to confirm authenticity, checks, and duplicate files.
+                  </p>
+                </div>
+
+                {/* AI checking list */}
+                <div className="space-y-2 bg-slate-950/70 p-3.5 rounded-2xl border border-slate-850">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-300">
+                    <span className="flex items-center gap-1.5">
+                      {aiChecks.duplicate ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <div className="w-3.5 h-3.5 rounded-full border border-slate-700" />}
+                      Duplicate Detection
+                    </span>
+                    <span className={`text-[9px] font-mono ${aiChecks.duplicate ? 'text-emerald-400 font-bold' : 'text-slate-500'}`}>
+                      {aiChecks.duplicate ? '✓ PASSED' : 'PENDING'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-300">
+                    <span className="flex items-center gap-1.5">
+                      {aiChecks.fakeNews ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <div className="w-3.5 h-3.5 rounded-full border border-slate-700" />}
+                      Fake News Detection
+                    </span>
+                    <span className={`text-[9px] font-mono ${aiChecks.fakeNews ? 'text-emerald-400 font-bold' : 'text-slate-500'}`}>
+                      {aiChecks.fakeNews ? '✓ PASSED' : 'PENDING'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-300">
+                    <span className="flex items-center gap-1.5">
+                      {aiChecks.safetyReview ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <div className="w-3.5 h-3.5 rounded-full border border-slate-700" />}
+                      AI Safety Review
+                    </span>
+                    <span className={`text-[9px] font-mono ${aiChecks.safetyReview ? 'text-emerald-400 font-bold' : 'text-slate-500'}`}>
+                      {aiChecks.safetyReview ? '✓ CLEAN' : 'PENDING'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-300">
+                    <span className="flex items-center gap-1.5">
+                      {aiChecks.copyright ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <div className="w-3.5 h-3.5 rounded-full border border-slate-700" />}
+                      Copyright Check
+                    </span>
+                    <span className={`text-[9px] font-mono ${aiChecks.copyright ? 'text-emerald-400 font-bold' : 'text-slate-500'}`}>
+                      {aiChecks.copyright ? '✓ ORIGINAL' : 'PENDING'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Verification Actions & Results */}
+                <div className="pt-2">
+                  {verificationState === 'idle' && (
+                    <button
+                      type="button"
+                      onClick={runAiVerification}
+                      className="w-full py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-md"
+                    >
+                      🛡️ Run AI Verification Matrix
+                    </button>
+                  )}
+
+                  {verificationState === 'scanning' && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-[10px] font-bold text-indigo-400">
+                        <span className="flex items-center gap-1">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Analyzing contents...
+                        </span>
+                        <span>{verificationProgress}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
+                        <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${verificationProgress}%` }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {verificationState === 'verified' && (
+                    <div className="flex items-center justify-between bg-slate-950/80 p-3 rounded-2xl border border-indigo-900/30 animate-pulse">
+                      <div>
+                        <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Trust Score</span>
+                        <span className="text-xl font-black text-emerald-400 tracking-tight block mt-1">{trustScore}%</span>
+                      </div>
+                      <div className="bg-indigo-950/80 border border-indigo-400/30 text-[9px] px-2.5 py-1.5 rounded-xl font-black uppercase text-indigo-300 tracking-wider flex items-center gap-1 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
+                        <Check className="w-3 h-3 text-emerald-400 stroke-[3]" /> Holographic verified
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
+
+              {/* Publish Center card */}
+              <form onSubmit={handlePublish} className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 backdrop-blur-md flex flex-col justify-between space-y-4">
+                <div className="space-y-1">
+                  <span className="text-[9px] font-black uppercase text-indigo-400 tracking-wider">COORDINATE MAPPING</span>
+                  <h4 className="text-xs font-black text-white uppercase tracking-wide">4. Publish Center</h4>
+                  <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
+                    Map your content metadata to appropriate focus nodes before transmission.
+                  </p>
+                </div>
+
+                <div className="space-y-3 bg-slate-950/50 p-3 rounded-2xl border border-slate-850 text-xs">
+                  <div className="space-y-1.5">
+                    <label className="block text-[9px] font-bold uppercase text-slate-400">Category Node</label>
+                    <select
+                      value={publishCategory}
+                      onChange={(e) => setPublishCategory(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none"
+                    >
+                      <option value="Disaster">Disaster Awareness</option>
+                      <option value="Medical">Medical Preparedness</option>
+                      <option value="Cyber Security">Cyber Security Protection</option>
+                      <option value="Women Safety">Women Emergency Guard</option>
+                      <option value="Child Safety">Child Protection Protocol</option>
+                      <option value="Environment">Environmental Safety</option>
+                      <option value="Traffic Safety">Traffic & Grid Safety</option>
+                      <option value="Government Advisory">Official Government Advisory</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="block text-[9px] font-bold uppercase text-slate-400">Target Region</label>
+                      <input 
+                        type="text"
+                        value={publishRegion}
+                        onChange={(e) => setPublishRegion(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[9px] font-bold uppercase text-slate-400">Language</label>
+                      <input 
+                        type="text"
+                        value={publishLanguage}
+                        onChange={(e) => setPublishLanguage(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={verificationState !== 'verified'}
+                  className={`w-full py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer ${
+                    verificationState === 'verified'
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white animate-pulse'
+                      : 'bg-slate-950 text-slate-600 border border-slate-900 cursor-not-allowed'
+                  }`}
+                >
+                  {verificationState === 'verified' ? '🚀 Broadcast Verified Alert' : 'Locked (Requires Verification Check)'}
+                </button>
+              </form>
 
             </div>
 
-            {/* COLUMN 2 - SIDEBAR STATS: REWARDS + LEADERBOARD BOARD + REFERRAL NETWORKS (Col-span: 12 -> 4 on desktop) */}
-            <div className="col-span-12 lg:col-span-4 space-y-6">
-              
-              {/* GAMING ACHIEVEMENTS */}
-              <div className="bg-white border border-slate-200 rounded-[28px] p-6 shadow-sm text-left relative overflow-hidden space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                  <Trophy className="w-4.5 h-4.5 text-amber-500 stroke-[2.5]" />
-                  <div>
-                    <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider leading-none">Milestone Awards</h4>
-                    <p className="text-[9px] font-mono text-slate-400 uppercase leading-none mt-1">Claim honors with milestone points</p>
+            {/* 6. MISSION FEED */}
+            <div className="space-y-4 text-left">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-2">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-black text-indigo-300 uppercase tracking-wider flex items-center gap-2">
+                    <Compass className="w-4.5 h-4.5 animate-spin" />
+                    6. COMMUNITY MISSION FEED
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    Verified citizen transmissions distributed across decentralized grid sectors.
+                  </p>
+                </div>
+
+                {/* Filter tabs */}
+                <div className="flex flex-wrap gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-850">
+                  <button 
+                    type="button" 
+                    onClick={() => setFeedFilterTab('all')}
+                    className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                      feedFilterTab === 'all' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => setFeedFilterTab('news')}
+                    className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                      feedFilterTab === 'news' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    News
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => setFeedFilterTab('article')}
+                    className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                      feedFilterTab === 'article' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Articles
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => setFeedFilterTab('post')}
+                    className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                      feedFilterTab === 'post' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Posts
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => setFeedFilterTab('saved')}
+                    className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                      feedFilterTab === 'saved' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Saved
+                  </button>
+                </div>
+              </div>
+
+              {/* Feed List rendered with premium holographic cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {feedItems
+                  .filter(item => {
+                    if (feedFilterTab === 'all') return true;
+                    if (feedFilterTab === 'saved') return item.bookmarks > 0;
+                    return item.type === feedFilterTab;
+                  })
+                  .map((item) => (
+                    <div 
+                      key={item.id} 
+                      className="bg-slate-900/60 border border-slate-800 rounded-3xl p-5 flex flex-col justify-between hover:border-slate-700 hover:bg-slate-900 transition-all duration-300 relative overflow-hidden group shadow-md"
+                    >
+                      {/* Top metadata */}
+                      <div className="space-y-1 relative z-10">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="text-[10px] font-extrabold uppercase text-indigo-400 px-2 py-0.5 bg-indigo-950/60 border border-indigo-500/10 rounded-md">
+                            {item.category}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            {item.verified && (
+                              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/50 border border-emerald-500/20 px-2 py-0.5 rounded-md font-black uppercase tracking-wider animate-pulse flex items-center gap-1">
+                                <Check className="w-2.5 h-2.5 text-emerald-400 stroke-[3]" /> Verified ({item.trustScore}%)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <h4 className="text-sm font-black text-white mt-2 leading-snug tracking-tight">
+                          {item.title}
+                        </h4>
+
+                        {item.screenshotUrl && (
+                          <div className="relative aspect-video rounded-xl overflow-hidden mt-3 border border-slate-850">
+                            <img src={item.screenshotUrl} alt="Visual Attachment" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+
+                        {item.content && (
+                          <p className="text-xs text-slate-400 leading-relaxed font-sans line-clamp-3 mt-2">
+                            {item.content}
+                          </p>
+                        )}
+
+                        {item.newsLink && (
+                          <a 
+                            href={item.newsLink}
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[10px] font-mono text-indigo-300 hover:text-indigo-200 mt-2 hover:underline"
+                          >
+                            Source Link <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        )}
+                      </div>
+
+                      {/* Interactive metrics footer */}
+                      <div className="border-t border-slate-850/80 pt-3.5 mt-4 flex items-center justify-between text-slate-400 text-[10px] font-mono font-bold">
+                        <span>Views: {item.views.toLocaleString()}</span>
+                        
+                        <div className="flex items-center gap-3">
+                          <button 
+                            type="button" 
+                            onClick={() => handleVote(item.id)}
+                            className="flex items-center gap-1 hover:text-rose-400 transition-colors"
+                          >
+                            <Heart className="w-3.5 h-3.5 text-rose-500/70 fill-rose-500/10" /> {item.likes}
+                          </button>
+                          
+                          <button 
+                            type="button" 
+                            onClick={() => handleBookmark(item.id)}
+                            className="flex items-center gap-1 hover:text-indigo-400 transition-colors"
+                          >
+                            <Bookmark className="w-3.5 h-3.5" /> {item.bookmarks}
+                          </button>
+                          
+                          <button 
+                            type="button" 
+                            onClick={() => handleShare(item.id)}
+                            className="flex items-center gap-1 hover:text-indigo-400 transition-colors"
+                          >
+                            <Share2 className="w-3.5 h-3.5" /> {item.shares}
+                          </button>
+
+                          <button 
+                            type="button" 
+                            onClick={() => handleReport(item.id)}
+                            className="text-slate-600 hover:text-rose-400 transition-colors"
+                            title="Report Alert"
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+
+          {/* COLUMN 2: DASHBOARDS, REPUTATIONS, MISSIONS & REWARD STORE (Col-span: 4) */}
+          <div className="col-span-12 lg:col-span-4 space-y-8 text-left">
+            
+            {/* 5. CREATOR DASHBOARD PANEL */}
+            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 backdrop-blur-md space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+                <Users className="w-4.5 h-4.5 text-indigo-400" />
+                <div>
+                  <h4 className="font-extrabold text-white text-xs uppercase tracking-wider">5. Creator Dashboard</h4>
+                  <p className="text-[9px] font-mono text-slate-400 uppercase tracking-widest mt-0.5">Live Sector Analytics</p>
+                </div>
+              </div>
+
+              {/* Grid of 7 core required metrics */}
+              <div className="grid grid-cols-2 gap-3.5 text-xs font-mono">
+                
+                <div className="bg-slate-950 p-3 rounded-2xl border border-slate-850">
+                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-widest">Today's Points</span>
+                  <span className="text-lg font-black text-white block mt-1">+150 PTS</span>
+                </div>
+
+                <div className="bg-slate-950 p-3 rounded-2xl border border-slate-850">
+                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-widest">Weekly Rank</span>
+                  <span className="text-lg font-black text-indigo-400 block mt-1">#42</span>
+                </div>
+
+                <div className="bg-slate-950 p-3 rounded-2xl border border-slate-850">
+                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-widest">Monthly Rank</span>
+                  <span className="text-lg font-black text-indigo-400 block mt-1">#118</span>
+                </div>
+
+                <div className="bg-slate-950 p-3 rounded-2xl border border-slate-850">
+                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-widest">Published Posts</span>
+                  <span className="text-lg font-black text-white block mt-1">{publishedCount}</span>
+                </div>
+
+                <div className="bg-slate-950 p-3 rounded-2xl border border-slate-850">
+                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-widest">Verification %</span>
+                  <span className="text-lg font-black text-emerald-400 block mt-1">100%</span>
+                </div>
+
+                <div className="bg-slate-950 p-3 rounded-2xl border border-slate-850">
+                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-widest">Community Reach</span>
+                  <span className="text-lg font-black text-white block mt-1">4.2k</span>
+                </div>
+
+                <div className="bg-slate-950 p-3 rounded-2xl border border-slate-850 col-span-2">
+                  <span className="block text-[8px] text-slate-500 uppercase font-black tracking-widest">Impact Score</span>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-lg font-black text-indigo-300 block">890</span>
+                    <span className="text-[9px] font-sans font-bold text-slate-400">DECISION POWER ACCELERATED</span>
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-500 leading-relaxed font-sans font-medium">
-                  Use accumulated points to unlock official level badges. Claimed milestones register permanently to your Hall signature.
-                </p>
+              </div>
+            </div>
 
-                <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-                  {AWARDS_TIERS.map((tier) => {
-                    const isClaimed = claimedAwards.includes(tier.id);
-                    const isAllowed = points >= tier.pointsReq;
+            {/* 7. REPUTATION SYSTEM (Instead of followers) */}
+            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 backdrop-blur-md">
+              <button
+                type="button"
+                onClick={() => setCollapseState(c => ({ ...c, reputation: !c.reputation }))}
+                className="w-full flex items-center justify-between text-left cursor-pointer focus:outline-none"
+              >
+                <div className="flex items-center gap-2">
+                  <Award className="w-4.5 h-4.5 text-indigo-400" />
+                  <div>
+                    <h4 className="font-extrabold text-white text-xs uppercase tracking-wider leading-none">7. Reputation System</h4>
+                    <p className="text-[9px] font-mono text-slate-400 uppercase leading-none mt-1.5">Decentralized Trust Coordinates</p>
+                  </div>
+                </div>
+                {collapseState.reputation ? <ChevronRight className="w-4.5 h-4.5 text-slate-500" /> : <ChevronDown className="w-4.5 h-4.5 text-slate-500" />}
+              </button>
+
+              {!collapseState.reputation && (
+                <div className="pt-4 space-y-3 font-mono text-[11px] border-t border-slate-850 mt-4">
+                  <div className="flex justify-between items-center bg-slate-950/60 p-2 rounded-xl border border-slate-850">
+                    <span className="text-slate-400 uppercase font-bold text-[9px]">Community Trust</span>
+                    <span className="font-black text-indigo-300">EXCELLENT (96%)</span>
+                  </div>
+                  <div className="flex justify-between items-center bg-slate-950/60 p-2 rounded-xl border border-slate-850">
+                    <span className="text-slate-400 uppercase font-bold text-[9px]">Accuracy Score</span>
+                    <span className="font-black text-emerald-400">98.4%</span>
+                  </div>
+                  <div className="flex justify-between items-center bg-slate-950/60 p-2 rounded-xl border border-slate-850">
+                    <span className="text-slate-400 uppercase font-bold text-[9px]">Helpful Appraise Score</span>
+                    <span className="font-black text-indigo-300">1,240 ❤️</span>
+                  </div>
+                  <div className="flex justify-between items-center bg-slate-950/60 p-2 rounded-xl border border-slate-850">
+                    <span className="text-slate-400 uppercase font-bold text-[9px]">Consistency Coefficient</span>
+                    <span className="font-black text-amber-400">HIGH INTENSITY</span>
+                  </div>
+                  <div className="flex justify-between items-center bg-slate-950/60 p-2 rounded-xl border border-slate-850">
+                    <span className="text-slate-400 uppercase font-bold text-[9px]">Verification Pass Rate</span>
+                    <span className="font-black text-emerald-400">100.0%</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 8. POINTS SYSTEM CARD */}
+            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 backdrop-blur-md">
+              <button
+                type="button"
+                onClick={() => setCollapseState(c => ({ ...c, pointsSystem: !c.pointsSystem }))}
+                className="w-full flex items-center justify-between text-left cursor-pointer focus:outline-none"
+              >
+                <div className="flex items-center gap-2">
+                  <Coins className="w-4.5 h-4.5 text-amber-500" />
+                  <div>
+                    <h4 className="font-extrabold text-white text-xs uppercase tracking-wider leading-none">8. Points Matrix Reference</h4>
+                    <p className="text-[9px] font-mono text-slate-400 uppercase leading-none mt-1.5">Contribution weights guidelines</p>
+                  </div>
+                </div>
+                {collapseState.pointsSystem ? <ChevronRight className="w-4.5 h-4.5 text-slate-500" /> : <ChevronDown className="w-4.5 h-4.5 text-slate-500" />}
+              </button>
+
+              {!collapseState.pointsSystem && (
+                <div className="pt-4 space-y-3.5 border-t border-slate-850 mt-4 text-[10.5px]">
+                  <p className="text-slate-400 leading-relaxed font-sans font-medium">
+                    Points are generated automatically on the decentralized blockchain. Falsified or duplicated alerts lead to penalties.
+                  </p>
+
+                  <div className="space-y-2 font-mono">
+                    <div className="flex justify-between text-slate-300">
+                      <span>Safety Post</span>
+                      <span className="text-indigo-400 font-extrabold">+50 PTS</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>Newspaper News Verified</span>
+                      <span className="text-indigo-400 font-extrabold">+100 PTS</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>Breaking Verified Alert</span>
+                      <span className="text-indigo-400 font-extrabold">+150 PTS</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>Exclusive Local Alert</span>
+                      <span className="text-indigo-400 font-extrabold">+180 PTS</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>Awareness Article Draft</span>
+                      <span className="text-indigo-400 font-extrabold">+200 PTS</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>Featured Resource Guide</span>
+                      <span className="text-indigo-400 font-extrabold">+300 PTS</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>Expert Curated Article</span>
+                      <span className="text-indigo-400 font-extrabold">+500 PTS</span>
+                    </div>
+                    <div className="border-t border-slate-850 my-2 pt-2 text-[9px] uppercase font-black text-slate-500">
+                      Decentralized Feed Actions
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>Helpful Upvote received</span>
+                      <span className="text-indigo-400 font-extrabold">+5 PTS</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>Saved to Archive by peer</span>
+                      <span className="text-indigo-400 font-extrabold">+3 PTS</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>Secure Shared Broadcast</span>
+                      <span className="text-indigo-400 font-extrabold">+10 PTS</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>Official Gov Spotlight</span>
+                      <span className="text-indigo-400 font-extrabold">+1000 PTS</span>
+                    </div>
+                    <div className="border-t border-slate-850 my-2 pt-2 text-[9px] uppercase font-black text-slate-500">
+                      Active Streak Multipliers
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>Daily Upload reward</span>
+                      <span className="text-indigo-400 font-extrabold">+20 PTS</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>7-Day Continuous Streak</span>
+                      <span className="text-indigo-400 font-extrabold">+150 PTS</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>30-Day Continuous Streak</span>
+                      <span className="text-indigo-400 font-extrabold">+1000 PTS</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 9. CREATOR RANK PROGRESSION LEVEL TREE */}
+            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 backdrop-blur-md">
+              <button
+                type="button"
+                onClick={() => setCollapseState(c => ({ ...c, rankProgression: !c.rankProgression }))}
+                className="w-full flex items-center justify-between text-left cursor-pointer focus:outline-none"
+              >
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4.5 h-4.5 text-indigo-400" />
+                  <div>
+                    <h4 className="font-extrabold text-white text-xs uppercase tracking-wider leading-none">9. Rank Progression</h4>
+                    <p className="text-[9px] font-mono text-slate-400 uppercase leading-none mt-1.5">Seven Levels of Guardian Authority</p>
+                  </div>
+                </div>
+                {collapseState.rankProgression ? <ChevronRight className="w-4.5 h-4.5 text-slate-500" /> : <ChevronDown className="w-4.5 h-4.5 text-slate-500" />}
+              </button>
+
+              {!collapseState.rankProgression && (
+                <div className="pt-4 border-t border-slate-850 mt-4 space-y-3 font-mono text-[10.5px]">
+                  {rankInfo.list.map((l) => {
+                    const isActive = points >= l.min && points <= l.max;
+                    const isPassed = points > l.max;
                     
                     return (
                       <div 
-                        key={tier.id} 
-                        className={`bg-gradient-to-tr ${tier.color} text-white p-4 rounded-2xl border flex flex-col justify-between gap-3 relative overflow-hidden shadow-xs`}
-                      >
-                        <div className="space-y-1">
-                          <div className="flex justify-between items-start">
-                            <span className="text-[7.5px] font-black uppercase tracking-widest font-mono text-indigo-200 bg-slate-950/40 px-2 py-0.5 rounded leading-none">
-                              {tier.pointsReq.toLocaleString()} PTS
-                            </span>
-                            
-                            {isClaimed ? (
-                              <span className="text-[7px] font-black uppercase text-emerald-350 bg-emerald-950/60 py-0.5 px-1.5 rounded font-mono border border-emerald-500/20">Armed</span>
-                            ) : isAllowed ? (
-                              <span className="text-[7px] font-black uppercase text-amber-300 bg-amber-950/50 py-0.5 px-1.5 rounded font-mono border border-amber-500/20 animate-pulse">Claimable</span>
-                            ) : (
-                              <span className="text-[7px] font-black uppercase text-slate-300 bg-slate-950/40 py-0.5 px-1.5 rounded font-mono border border-white/5">Locked</span>
-                            )}
-                          </div>
-
-                          <h5 className="text-xs font-black uppercase tracking-wide text-slate-100">{tier.name}</h5>
-                          <p className="text-[10px] text-indigo-100 font-sans leading-relaxed font-medium">{tier.description}</p>
-                        </div>
-
-                        <div className="bg-slate-950/40 p-2.5 rounded-lg border border-white/5 text-[9.5px] font-mono space-y-1 overflow-hidden">
-                          <span className="text-[7px] font-black text-indigo-300 uppercase tracking-widest block leading-none">PERKS ATTACHED</span>
-                          <ul className="space-y-0.5 text-slate-350 font-sans">
-                            {tier.rewards.slice(0, 2).map((reward, i) => (
-                              <li key={i} className="truncate">&bull; {reward}</li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        <button
-                          type="button"
-                          disabled={isClaimed || !isAllowed}
-                          onClick={() => claimGamingBadge(tier.id, tier.name, tier.pointsReq, tier.description)}
-                          className={`w-full py-2 font-black text-[9px] uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
-                            isClaimed 
-                              ? 'bg-slate-900/60 text-slate-500 border border-slate-800 cursor-not-allowed' 
-                              : isAllowed 
-                                ? 'bg-white text-indigo-950 hover:bg-slate-100 font-black shadow-sm' 
-                                : 'bg-white/10 text-white/30 border border-white/5 cursor-not-allowed'
-                          }`}
-                        >
-                          {isClaimed ? 'Badge Infused' : isAllowed ? 'Claim Award & Badge' : `Locked (-${(tier.pointsReq - points).toLocaleString()} PTS)`}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* STEP 8: LEADERBOARD REGISTRY */}
-              <div className="bg-white border border-slate-200 rounded-[28px] p-6 shadow-sm text-left relative overflow-hidden space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                  <Crown className="w-4.5 h-4.5 text-indigo-600" />
-                  <div>
-                    <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider leading-none">Hall of Legends</h4>
-                    <p className="text-[9px] font-mono text-slate-400 uppercase leading-none mt-1">High-performing creators of the grid</p>
-                  </div>
-                </div>
-
-                <div className="divide-y divide-slate-100 border border-slate-150 rounded-2xl overflow-hidden bg-slate-50/50">
-                  {currentLeaderboard.map((item) => {
-                    const userStanding = item.isUser;
-                    return (
-                      <div 
-                        key={item.rank} 
-                        className={`flex items-center justify-between p-3 flex-wrap gap-2 ${
-                          userStanding ? 'bg-indigo-50/70 border-l-2 border-indigo-500' : 'bg-white'
+                        key={l.level}
+                        className={`p-2.5 rounded-xl border flex flex-col justify-between transition-all ${
+                          isActive 
+                            ? 'bg-slate-900 border-indigo-500/50 shadow-sm' 
+                            : 'bg-slate-950/40 border-slate-900 text-slate-500'
                         }`}
                       >
-                        <div className="flex items-center gap-2">
-                          <span className={`w-5 h-5 rounded-md text-[9px] font-black flex items-center justify-center font-mono text-center ${
-                            item.rank === 1 
-                              ? 'bg-amber-100 text-amber-700 font-bold' 
-                              : 'bg-slate-100 text-slate-500'
-                          }`}>
-                            #{item.rank}
+                        <div className="flex justify-between items-center">
+                          <span className={`font-black uppercase text-xs ${isActive ? l.color : 'text-slate-600'}`}>
+                            Level {l.level}: {l.name}
                           </span>
-
-                          <div className="relative w-8 h-8 rounded-full overflow-hidden border">
-                            <img src={item.avatar} alt={item.name} className="w-full h-full object-cover" />
-                          </div>
-
-                          <div className="text-left leading-tight">
-                            <div className="flex items-center gap-1">
-                              <span className="font-black text-[11px] text-slate-805 truncate max-w-[90px]">{item.name}</span>
-                              {userStanding && (
-                                <span className="text-[6.5px] bg-indigo-600 text-white rounded px-1 tracking-wider leading-none">YOU</span>
-                              )}
-                            </div>
-                            <span className="text-[9px] text-slate-400 font-mono block leading-none">{item.username}</span>
-                          </div>
+                          {isActive && (
+                            <span className="text-[8px] font-bold bg-indigo-950 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/20 uppercase tracking-widest animate-pulse">
+                              Active
+                            </span>
+                          )}
+                          {isPassed && (
+                            <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-0.5">
+                              ✓ Passed
+                            </span>
+                          )}
                         </div>
-
-                        <div className="text-right">
-                          <span className="block text-[11px] font-black text-slate-900 font-mono leading-none">{(item.points).toLocaleString()}</span>
-                          <span className="text-[7px] text-slate-400 font-mono block uppercase">PTS Score</span>
+                        <div className="flex justify-between text-[9px] text-slate-500 mt-1">
+                          <span>Required Points Threshold</span>
+                          <span>{l.min.toLocaleString()} - {l.max > 5000000 ? '∞' : l.max.toLocaleString()} PTS</span>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              </div>
+              )}
+            </div>
 
-              {/* REFERRAL PORTAL */}
-              <div className="bg-white border border-slate-200 rounded-[28px] p-6 shadow-sm text-left relative overflow-hidden space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                  <UserPlus className="w-4.5 h-4.5 text-indigo-650" />
+            {/* 10. WEEKLY MISSIONS COMPACT */}
+            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 backdrop-blur-md">
+              <button
+                type="button"
+                onClick={() => setCollapseState(c => ({ ...c, weeklyMissions: !c.weeklyMissions }))}
+                className="w-full flex items-center justify-between text-left cursor-pointer focus:outline-none"
+              >
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4.5 h-4.5 text-indigo-400" />
                   <div>
-                    <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider leading-none">Invite Network</h4>
-                    <p className="text-[9px] font-mono text-slate-400 uppercase leading-none mt-1">Acquire point credentials instantly</p>
+                    <h4 className="font-extrabold text-white text-xs uppercase tracking-wider leading-none">10. Weekly Missions</h4>
+                    <p className="text-[9px] font-mono text-slate-400 uppercase leading-none mt-1.5">Sector contribution objectives</p>
                   </div>
                 </div>
+                {collapseState.weeklyMissions ? <ChevronRight className="w-4.5 h-4.5 text-slate-500" /> : <ChevronDown className="w-4.5 h-4.5 text-slate-500" />}
+              </button>
 
-                <p className="text-xs text-slate-500 leading-relaxed font-sans font-medium">
-                  Register safe citizen nodes on the secure grid. Each successful invitation earns <strong className="text-indigo-650 font-extrabold">+100 Points</strong>.
-                </p>
+              {!collapseState.weeklyMissions && (
+                <div className="pt-4 border-t border-slate-850 mt-4 space-y-4">
+                  <p className="text-xs text-slate-400 font-sans font-medium">
+                    Achieve objectives before weekly calibration cycle finishes. Unlock unique profile badges and points.
+                  </p>
 
-                <form onSubmit={handleReferralSubmit} className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="block text-[8px] font-black text-slate-450 uppercase tracking-widest font-mono">
-                      Affiliated Name
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={refName}
-                      onChange={(e) => setRefName(e.target.value)}
-                      placeholder="e.g. John Doe, Alice Smith"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold text-slate-800 focus:bg-white focus:border-indigo-500 outline-none transition-colors"
-                    />
+                  <div className="space-y-3 font-mono text-[10px]">
+                    {/* Mission 1 */}
+                    <div className="space-y-1.5 bg-slate-950/60 p-2.5 rounded-xl border border-slate-850">
+                      <div className="flex justify-between text-slate-300">
+                        <span>Publish 5 Articles</span>
+                        <span>{weeklyMissionsState.articles}/5 guides</span>
+                      </div>
+                      <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden">
+                        <div className="h-full bg-indigo-500" style={{ width: `${(weeklyMissionsState.articles/5)*100}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Mission 2 */}
+                    <div className="space-y-1.5 bg-slate-950/60 p-2.5 rounded-xl border border-slate-850">
+                      <div className="flex justify-between text-slate-300">
+                        <span>Publish 10 Safety Posts</span>
+                        <span>{weeklyMissionsState.posts}/10 dispatches</span>
+                      </div>
+                      <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden">
+                        <div className="h-full bg-indigo-500" style={{ width: `${(weeklyMissionsState.posts/10)*100}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Mission 3 */}
+                    <div className="space-y-1.5 bg-slate-950/60 p-2.5 rounded-xl border border-slate-850">
+                      <div className="flex justify-between text-slate-300">
+                        <span>Verify 20 News Reports</span>
+                        <span>{weeklyMissionsState.newsReports}/20 checks</span>
+                      </div>
+                      <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden">
+                        <div className="h-full bg-indigo-500" style={{ width: `${(weeklyMissionsState.newsReports/20)*100}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Mission 4 */}
+                    <div className="space-y-1.5 bg-slate-950/60 p-2.5 rounded-xl border border-slate-850">
+                      <div className="flex justify-between text-slate-300">
+                        <span>Receive 200 Helpful Votes</span>
+                        <span>{weeklyMissionsState.helpfulVotes}/200 votes</span>
+                      </div>
+                      <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden">
+                        <div className="h-full bg-indigo-500" style={{ width: `${(weeklyMissionsState.helpfulVotes/200)*100}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Mission 5 */}
+                    <div className="flex items-center justify-between bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 text-slate-300">
+                      <span>Complete Daily Streak</span>
+                      <span className="text-emerald-400 font-bold">✓ COMPLETED</span>
+                    </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="block text-[8px] font-black text-slate-450 uppercase tracking-widest font-mono">
-                      Fail-safe Contact (Email / Radio Id)
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={refContact}
-                      onChange={(e) => setRefContact(e.target.value)}
-                      placeholder="e.g. peer_antenna@gmail.com"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold text-slate-800 focus:bg-white focus:border-indigo-550 outline-none transition-colors"
-                    />
+                  {/* Mission rewards box */}
+                  <div className="bg-indigo-950/30 border border-indigo-500/20 p-3 rounded-2xl text-[10.5px]">
+                    <span className="text-[8px] font-black uppercase text-indigo-400 block tracking-widest font-mono mb-1.5">REWARDS ATTACHED</span>
+                    <ul className="space-y-1 text-slate-300 font-sans font-medium">
+                      <li>&bull; Bonus safety points: <strong>+500 Points</strong></li>
+                      <li>&bull; Exclusive Guardian Badge: <strong>"Streak Master"</strong></li>
+                      <li>&bull; Premium Matrix Access</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 11. HALL OF GUARDIANS */}
+            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 backdrop-blur-md">
+              <button
+                type="button"
+                onClick={() => setCollapseState(c => ({ ...c, hallOfGuardians: !c.hallOfGuardians }))}
+                className="w-full flex items-center justify-between text-left cursor-pointer focus:outline-none"
+              >
+                <div className="flex items-center gap-2">
+                  <Crown className="w-4.5 h-4.5 text-indigo-400" />
+                  <div>
+                    <h4 className="font-extrabold text-white text-xs uppercase tracking-wider leading-none">11. Hall of Guardians</h4>
+                    <p className="text-[9px] font-mono text-slate-400 uppercase leading-none mt-1.5">Decentralized creator standings</p>
+                  </div>
+                </div>
+                {collapseState.hallOfGuardians ? <ChevronRight className="w-4.5 h-4.5 text-slate-500" /> : <ChevronDown className="w-4.5 h-4.5 text-slate-500" />}
+              </button>
+
+              {!collapseState.hallOfGuardians && (
+                <div className="pt-4 border-t border-slate-850 mt-4 space-y-4">
+                  {/* Internal tabs */}
+                  <div className="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-850 text-[8.5px] font-mono font-black uppercase">
+                    <button 
+                      type="button" 
+                      onClick={() => setLeaderboardTab('global')}
+                      className={`py-1 rounded text-center transition-all ${leaderboardTab === 'global' ? 'bg-indigo-650 text-white' : 'text-slate-500'}`}
+                    >
+                      Global
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setLeaderboardTab('country')}
+                      className={`py-1 rounded text-center transition-all ${leaderboardTab === 'country' ? 'bg-indigo-650 text-white' : 'text-slate-500'}`}
+                    >
+                      Country
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setLeaderboardTab('state')}
+                      className={`py-1 rounded text-center transition-all ${leaderboardTab === 'state' ? 'bg-indigo-650 text-white' : 'text-slate-500'}`}
+                    >
+                      State
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setLeaderboardTab('city')}
+                      className={`py-1 rounded text-center transition-all ${leaderboardTab === 'city' ? 'bg-indigo-650 text-white' : 'text-slate-500'}`}
+                    >
+                      City
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setLeaderboardTab('college')}
+                      className={`py-1 rounded text-center transition-all ${leaderboardTab === 'college' ? 'bg-indigo-650 text-white' : 'text-slate-500'}`}
+                    >
+                      College
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setLeaderboardTab('friends')}
+                      className={`py-1 rounded text-center transition-all ${leaderboardTab === 'friends' ? 'bg-indigo-650 text-white' : 'text-slate-500'}`}
+                    >
+                      Friends
+                    </button>
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={isAddingReferral}
-                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-550 text-white font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1 active:scale-98 disabled:opacity-40"
-                  >
-                    {isAddingReferral ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-                    ) : (
-                      <>
-                        <UserPlus className="w-3.5 h-3.5" /> Invite Peer (+100 PTS)
-                      </>
-                    )}
-                  </button>
-                </form>
-              </div>
+                  {/* Leaderboard entries */}
+                  <div className="space-y-2.5 font-mono text-[10.5px]">
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-slate-950/60 border border-indigo-500/20 shadow-[0_0_10px_rgba(99,102,241,0.05)]">
+                      <div className="flex items-center gap-2">
+                        <span className="text-indigo-400 font-extrabold text-xs">#1</span>
+                        <div className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs">👨‍🚀</div>
+                        <div>
+                          <span className="block font-black text-white leading-none">Brody prepared</span>
+                          <span className="text-[8px] text-slate-500 uppercase leading-none mt-0.5">@brody_prepared</span>
+                        </div>
+                      </div>
+                      <span className="font-extrabold text-white">584,200 PTS</span>
+                    </div>
 
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-slate-950/40 border border-slate-900">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-500 font-extrabold text-xs">#2</span>
+                        <div className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs">👩‍⚕️</div>
+                        <div>
+                          <span className="block font-black text-white leading-none">Sarah Emergency</span>
+                          <span className="text-[8px] text-slate-500 uppercase leading-none mt-0.5">@sarah_safety</span>
+                        </div>
+                      </div>
+                      <span className="font-extrabold text-white">410,500 PTS</span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-indigo-950/40 border border-indigo-500/20">
+                      <div className="flex items-center gap-2">
+                        <span className="text-indigo-400 font-extrabold text-xs">#3</span>
+                        <div className="w-6 h-6 rounded-full bg-indigo-600/30 border border-indigo-500/20 flex items-center justify-center text-xs">🛡️</div>
+                        <div>
+                          <span className="block font-black text-indigo-300 leading-none">You (Alpha Node)</span>
+                          <span className="text-[8px] text-slate-500 uppercase leading-none mt-0.5">@your_handle</span>
+                        </div>
+                      </div>
+                      <span className="font-extrabold text-indigo-300">{points.toLocaleString()} PTS</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 12. ACHIEVEMENT VAULT & GUARDIAN TROPHIES CHAMBER */}
+            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 backdrop-blur-md space-y-4">
+              <button
+                type="button"
+                onClick={() => setCollapseState(c => ({ ...c, achievementVault: !c.achievementVault }))}
+                className="w-full flex items-center justify-between text-left cursor-pointer focus:outline-none"
+              >
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-4.5 h-4.5 text-indigo-400" />
+                  <div>
+                    <h4 className="font-extrabold text-white text-xs uppercase tracking-wider leading-none">12. Achievement Vault</h4>
+                    <p className="text-[9px] font-mono text-slate-400 uppercase leading-none mt-1.5">Unlocks and custom achievements</p>
+                  </div>
+                </div>
+                {collapseState.achievementVault ? <ChevronRight className="w-4.5 h-4.5 text-slate-500" /> : <ChevronDown className="w-4.5 h-4.5 text-slate-500" />}
+              </button>
+
+              {!collapseState.achievementVault && (
+                <div className="pt-4 border-t border-slate-850 space-y-4">
+                  
+                  {/* Required Trophies grid list */}
+                  <div className="grid grid-cols-2 gap-3 font-mono text-[10px]">
+                    {/* Trophy 1 */}
+                    <div 
+                      onClick={() => triggerAchievement('first_article', 'First Article', '🏆', 'Awarded for drafting and publishing your first original article guidelines.')}
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                        unlockedAchievements.includes('first_article') 
+                          ? 'bg-slate-900 border-indigo-500/30 text-slate-250 shadow-sm' 
+                          : 'bg-slate-950/40 border-slate-900 text-slate-500 opacity-60'
+                      }`}
+                    >
+                      <span className="block text-lg mb-1">{unlockedAchievements.includes('first_article') ? '🏆' : '🔒'}</span>
+                      <span className="block font-black leading-tight uppercase">First Article</span>
+                      <span className="text-[8px] text-slate-500 block mt-0.5 uppercase">UNLOCKED</span>
+                    </div>
+
+                    {/* Trophy 2 */}
+                    <div 
+                      onClick={() => triggerAchievement('hundred_posts', '100 Posts', '🏆', 'Distributed 100 fast safety notifications to community feeds.')}
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                        unlockedAchievements.includes('hundred_posts') 
+                          ? 'bg-slate-900 border-indigo-500/30 text-slate-250 shadow-sm' 
+                          : 'bg-slate-950/40 border-slate-900 text-slate-500 opacity-60'
+                      }`}
+                    >
+                      <span className="block text-lg mb-1">{unlockedAchievements.includes('hundred_posts') ? '🏆' : '🔒'}</span>
+                      <span className="block font-black leading-tight uppercase">100 Posts</span>
+                      <span className="text-[8px] text-slate-500 block mt-0.5 uppercase">
+                        {unlockedAchievements.includes('hundred_posts') ? 'UNLOCKED' : '18/100 POSTS'}
+                      </span>
+                    </div>
+
+                    {/* Trophy 3 */}
+                    <div 
+                      onClick={() => triggerAchievement('thousand_votes', '1000 Helpful Votes', '🏆', 'Accumulated 1,000 upvotes from verified citizens.')}
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                        unlockedAchievements.includes('thousand_votes') 
+                          ? 'bg-slate-900 border-indigo-500/30 text-slate-250 shadow-sm' 
+                          : 'bg-slate-950/40 border-slate-900 text-slate-500 opacity-60'
+                      }`}
+                    >
+                      <span className="block text-lg mb-1">{unlockedAchievements.includes('thousand_votes') ? '🏆' : '🔒'}</span>
+                      <span className="block font-black leading-tight uppercase">1000 Votes</span>
+                      <span className="text-[8px] text-slate-500 block mt-0.5 uppercase">
+                        {unlockedAchievements.includes('thousand_votes') ? 'UNLOCKED' : '145/1000 VOTES'}
+                      </span>
+                    </div>
+
+                    {/* Trophy 4 */}
+                    <div 
+                      onClick={() => triggerAchievement('disaster_hero', 'Disaster Hero', '🏆', 'Published 20 emergency preparedness dispatches.')}
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                        unlockedAchievements.includes('disaster_hero') 
+                          ? 'bg-slate-900 border-indigo-500/30 text-slate-250 shadow-sm' 
+                          : 'bg-slate-950/40 border-slate-900 text-slate-500 opacity-60'
+                      }`}
+                    >
+                      <span className="block text-lg mb-1">{unlockedAchievements.includes('disaster_hero') ? '🏆' : '🔒'}</span>
+                      <span className="block font-black leading-tight uppercase">Disaster Hero</span>
+                      <span className="text-[8px] text-slate-500 block mt-0.5 uppercase">
+                        {unlockedAchievements.includes('disaster_hero') ? 'UNLOCKED' : '18/20 DISPATCHES'}
+                      </span>
+                    </div>
+
+                    {/* Trophy 5 */}
+                    <div 
+                      onClick={() => triggerAchievement('cyber_guardian', 'Cyber Guardian', '🏆', 'Successfully authored 5 advanced cybersecurity guidelines.')}
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                        unlockedAchievements.includes('cyber_guardian') 
+                          ? 'bg-slate-900 border-indigo-500/30 text-slate-250 shadow-sm' 
+                          : 'bg-slate-950/40 border-slate-900 text-slate-500 opacity-60'
+                      }`}
+                    >
+                      <span className="block text-lg mb-1">{unlockedAchievements.includes('cyber_guardian') ? '🏆' : '🔒'}</span>
+                      <span className="block font-black leading-tight uppercase">Cyber Guardian</span>
+                      <span className="text-[8px] text-slate-500 block mt-0.5 uppercase">LOCK-STATE</span>
+                    </div>
+
+                    {/* Trophy 6 */}
+                    <div 
+                      onClick={() => triggerAchievement('medical_champ', 'Medical Awareness Champion', '🏆', 'Verify and publish 10 crucial sanitary advisory posts.')}
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                        unlockedAchievements.includes('medical_champ') 
+                          ? 'bg-slate-900 border-indigo-500/30 text-slate-250 shadow-sm' 
+                          : 'bg-slate-950/40 border-slate-900 text-slate-500 opacity-60'
+                      }`}
+                    >
+                      <span className="block text-lg mb-1">{unlockedAchievements.includes('medical_champ') ? '🏆' : '🔒'}</span>
+                      <span className="block font-black leading-tight uppercase">Medical Champ</span>
+                      <span className="text-[8px] text-slate-500 block mt-0.5 uppercase">LOCK-STATE</span>
+                    </div>
+                  </div>
+
+                  {/* GUARDIAN AWARDS PRESERVED CHAMBER (Statues check) */}
+                  <div className="border-t border-slate-850 pt-4 mt-4 space-y-3 text-left">
+                    <span className="text-[9px] font-black uppercase text-indigo-400 tracking-wider block">🛡️ Preserved Guardian Awards Chamber</span>
+                    
+                    {/* Green Figurine */}
+                    <div className="p-3 bg-slate-950/60 border border-slate-850 rounded-2xl flex items-center justify-between gap-3">
+                      <div className="w-12 h-12 flex items-center justify-center shrink-0">
+                        <ShieldInfinityGuardStatue color="emerald" isUnlocked={claimedAwards.includes('green_impact')} />
+                      </div>
+                      <div className="text-[10px] flex-1">
+                        <span className="block font-black text-slate-300 uppercase leading-none">Green Guardian Figurine</span>
+                        <span className="text-[8px] text-slate-500 block mt-1 uppercase">REQS: 10,000 CREATOR POINTS</span>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => claimGuardianStatue('green_impact', 'Green Guardian Statue', 10000, 'Awarded for achieving 10,000 creator points.')}
+                        className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg border transition-all ${
+                          claimedAwards.includes('green_impact') 
+                            ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-400 cursor-not-allowed' 
+                            : 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-white'
+                        }`}
+                      >
+                        {claimedAwards.includes('green_impact') ? 'ACTIVE' : 'CLAIM'}
+                      </button>
+                    </div>
+
+                    {/* Red Figurine */}
+                    <div className="p-3 bg-slate-950/60 border border-slate-850 rounded-2xl flex items-center justify-between gap-3">
+                      <div className="w-12 h-12 flex items-center justify-center shrink-0">
+                        <ShieldInfinityGuardStatue color="red" isUnlocked={claimedAwards.includes('red_champion')} />
+                      </div>
+                      <div className="text-[10px] flex-1">
+                        <span className="block font-black text-slate-300 uppercase leading-none">Red Champion Figurine</span>
+                        <span className="text-[8px] text-slate-500 block mt-1 uppercase">REQS: 50,000 CREATOR POINTS</span>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => claimGuardianStatue('red_champion', 'Red Champion Statue', 50000, 'Awarded for achieving 50,000 creator points.')}
+                        className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg border transition-all ${
+                          claimedAwards.includes('red_champion') 
+                            ? 'bg-rose-950/40 border-rose-500/30 text-rose-400 cursor-not-allowed' 
+                            : 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-white'
+                        }`}
+                      >
+                        {claimedAwards.includes('red_champion') ? 'ACTIVE' : 'CLAIM'}
+                      </button>
+                    </div>
+
+                    {/* Purple Figurine */}
+                    <div className="p-3 bg-slate-950/60 border border-slate-850 rounded-2xl flex items-center justify-between gap-3">
+                      <div className="w-12 h-12 flex items-center justify-center shrink-0">
+                        <ShieldInfinityGuardStatue color="purple" isUnlocked={claimedAwards.includes('purple_legend')} />
+                      </div>
+                      <div className="text-[10px] flex-1">
+                        <span className="block font-black text-slate-300 uppercase leading-none">Purple Legend Figurine</span>
+                        <span className="text-[8px] text-slate-500 block mt-1 uppercase">REQS: 100,000 CREATOR POINTS</span>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => claimGuardianStatue('purple_legend', 'Purple Legend Statue', 100000, 'Awarded to legendary ecosystem leaders.')}
+                        className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg border transition-all ${
+                          claimedAwards.includes('purple_legend') 
+                            ? 'bg-fuchsia-950/40 border-fuchsia-500/30 text-fuchsia-400 cursor-not-allowed' 
+                            : 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-white'
+                        }`}
+                      >
+                        {claimedAwards.includes('purple_legend') ? 'ACTIVE' : 'CLAIM'}
+                      </button>
+                    </div>
+
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 13. REWARD STORE REDEMPTIONS */}
+            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 backdrop-blur-md">
+              <button
+                type="button"
+                onClick={() => setCollapseState(c => ({ ...c, rewardStore: !c.rewardStore }))}
+                className="w-full flex items-center justify-between text-left cursor-pointer focus:outline-none"
+              >
+                <div className="flex items-center gap-2">
+                  <Gift className="w-4.5 h-4.5 text-indigo-400" />
+                  <div>
+                    <h4 className="font-extrabold text-white text-xs uppercase tracking-wider leading-none">13. Reward Store</h4>
+                    <p className="text-[9px] font-mono text-slate-400 uppercase leading-none mt-1.5">Redeem points for premium goods</p>
+                  </div>
+                </div>
+                {collapseState.rewardStore ? <ChevronRight className="w-4.5 h-4.5 text-slate-500" /> : <ChevronDown className="w-4.5 h-4.5 text-slate-500" />}
+              </button>
+
+              {!collapseState.rewardStore && (
+                <div className="pt-4 border-t border-slate-850 mt-4 space-y-3 text-[10.5px]">
+                  
+                  {/* Item 1 */}
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 flex items-center justify-between">
+                    <div>
+                      <span className="block font-black text-white leading-none">Premium Membership</span>
+                      <span className="text-[8px] text-slate-500 block mt-0.5 font-mono">1 Month full subscription</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => redeemReward('premium_membership', 800, 'Premium Membership')}
+                      className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg text-[9px] uppercase tracking-wider font-mono"
+                    >
+                      800 PTS
+                    </button>
+                  </div>
+
+                  {/* Item 2 */}
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 flex items-center justify-between">
+                    <div>
+                      <span className="block font-black text-white leading-none">Verified Creator Badge</span>
+                      <span className="text-[8px] text-slate-500 block mt-0.5 font-mono">Dynamic profile glow highlight</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => redeemReward('creator_badge', 400, 'Verified Creator Badge')}
+                      className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg text-[9px] uppercase tracking-wider font-mono"
+                    >
+                      400 PTS
+                    </button>
+                  </div>
+
+                  {/* Item 3 */}
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 flex items-center justify-between">
+                    <div>
+                      <span className="block font-black text-white leading-none">Official safety certificate</span>
+                      <span className="text-[8px] text-slate-500 block mt-0.5 font-mono">Signed civilian grid certificate</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => redeemReward('safety_certificate', 1200, 'Official safety certificate')}
+                      className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg text-[9px] uppercase tracking-wider font-mono"
+                    >
+                      1.2k PTS
+                    </button>
+                  </div>
+
+                  {/* Item 4 */}
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 flex items-center justify-between">
+                    <div>
+                      <span className="block font-black text-white leading-none">Emergency Kit Merchandise</span>
+                      <span className="text-[8px] text-slate-500 block mt-0.5 font-mono">Custom Endlif medical field pouch</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => redeemReward('emergency_kit', 3000, 'Emergency Kit Merchandise')}
+                      className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg text-[9px] uppercase tracking-wider font-mono"
+                    >
+                      3k PTS
+                    </button>
+                  </div>
+
+                  {/* Item 5 */}
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 flex items-center justify-between">
+                    <div>
+                      <span className="block font-black text-white leading-none">ENDLIF Merchandise Kit</span>
+                      <span className="text-[8px] text-slate-500 block mt-0.5 font-mono">Premium safety hoodie and caps</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => redeemReward('endlif_merch', 5000, 'ENDLIF Merchandise Kit')}
+                      className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg text-[9px] uppercase tracking-wider font-mono"
+                    >
+                      5k PTS
+                    </button>
+                  </div>
+
+                  {/* Item 6 */}
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 flex items-center justify-between">
+                    <div>
+                      <span className="block font-black text-white leading-none">Exclusive Themes</span>
+                      <span className="text-[8px] text-slate-500 block mt-0.5 font-mono">Amber twilight custom style pack</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => redeemReward('amber_theme', 600, 'Exclusive Themes')}
+                      className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg text-[9px] uppercase tracking-wider font-mono"
+                    >
+                      600 PTS
+                    </button>
+                  </div>
+
+                  {/* Item 7 */}
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 flex items-center justify-between">
+                    <div>
+                      <span className="block font-black text-white leading-none">AI Assistant Credits</span>
+                      <span className="text-[8px] text-slate-500 block mt-0.5 font-mono">Additional offline verification tokens</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => redeemReward('ai_credits', 500, 'AI Assistant Credits')}
+                      className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg text-[9px] uppercase tracking-wider font-mono"
+                    >
+                      500 PTS
+                    </button>
+                  </div>
+
+                </div>
+              )}
             </div>
 
           </div>
 
         </div>
-      )}
+
+      </div>
 
     </div>
   );

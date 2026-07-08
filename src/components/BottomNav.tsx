@@ -10,7 +10,7 @@ export default function BottomNav({ activeScreen, setScreen }: BottomNavProps) {
   // If we are currently in SOS active screen or checkin, we don't display normal navigation or we keep it clean.
   if (activeScreen === 'sos') return null;
 
-  const isDark = ['resources', 'checkin', 'account'].includes(activeScreen);
+  const isDark = ['resources', 'account'].includes(activeScreen);
 
   return (
     <nav className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[600px] z-50 h-[80px] transition-all duration-300 flex justify-around items-center px-2 pb-4 rounded-t-2xl ${
@@ -42,19 +42,6 @@ export default function BottomNav({ activeScreen, setScreen }: BottomNavProps) {
       >
         <Users className="w-5 h-5 mb-1" />
         <span className="text-[9px] font-bold tracking-wider uppercase">CIRCLE</span>
-      </button>
-
-      {/* Check In tab (Secure / Watch status) */}
-      <button 
-        onClick={() => setScreen('checkin')}
-        className={`flex flex-col items-center justify-center transition-all cursor-pointer ${
-          activeScreen === 'checkin' 
-            ? 'text-indigo-400 scale-110 font-bold drop-shadow-[0_0_8px_rgba(99,102,241,0.6)]' 
-            : isDark ? 'text-slate-500 hover:text-slate-400' : 'text-slate-400 hover:text-slate-600'
-        }`}
-      >
-        <ShieldCheck className="w-5 h-5 mb-1" />
-        <span className="text-[9px] font-bold tracking-wider uppercase">CHECK-IN</span>
       </button>
 
       {/* Emergency Resources tab */}

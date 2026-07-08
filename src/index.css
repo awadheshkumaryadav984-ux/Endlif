@@ -53,3 +53,13 @@
   0%, 100% { height: 8px; }
   50% { height: 32px; }
 }
+
+.biometric-scan-line {
+  animation: scan-line 3s linear infinite;
+}
+
+@keyframes scan-line {
+  0% { transform: translateY(0); opacity: 0.8; }
+  50% { transform: translateY(152px); opacity: 0.8; }
+  100% { transform: translateY(0); opacity: 0.8; }
+}

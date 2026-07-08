@@ -8,7 +8,6 @@ import HomeView from './components/HomeView';
 import CircleView from './components/CircleView';
 import ResourcesView from './components/ResourcesView';
 import AssistantView from './components/AssistantView';
-import CheckInView from './components/CheckInView';
 import SosView from './components/SosView';
 import AccountView from './components/AccountView';
 import CreatorHubView from './components/CreatorHubView';
@@ -28,11 +27,11 @@ export default function App() {
 
   const [profile, setProfile] = useState({ name: 'Adele Vance', gender: 'Female' });
   const [avatar, setAvatar] = useState<AvatarConfig>({
-    character: 'dragon',
-    theme: 'indigo',
-    accessory: 'none',
-    aura: 'none',
-    motionStyle: 'float'
+    character: 'elephant',
+    theme: 'ruby',
+    accessory: 'helmet',
+    aura: 'shield',
+    motionStyle: 'run'
   });
 
   // Toggle contacts in real time based on decoy state
@@ -118,9 +117,13 @@ export default function App() {
   const handleConfirmSafety = () => {
     // Verified safe, return home
     const now = new Date();
+    const todayStr = now.toDateString();
+    localStorage.setItem('endlif_last_safe_confirm_date', todayStr);
+    SecureStorage.setItem('endlif_last_safe_confirm_timestamp', now.toISOString());
     const stamp = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     setLastCheckInTime(stamp);
     setScreen('home');
+    window.dispatchEvent(new Event('endlif_profile_updated'));
   };
 
   // Determine what Title to show in navigation header based on active screen
@@ -134,8 +137,6 @@ export default function App() {
         return 'Help';
       case 'assistant':
         return 'Assistant AI';
-      case 'checkin':
-        return 'Status Verification';
       case 'account':
         return 'Safety Profile';
       case 'creator_hub':
@@ -154,6 +155,8 @@ export default function App() {
             onSosTrigger={triggerSos} 
             lastCheckInTime={lastCheckInTime}
             setLastCheckInTime={setLastCheckInTime}
+            profileName={profile.name}
+            contacts={contacts}
           />
         );
       case 'circle':
@@ -168,18 +171,11 @@ export default function App() {
         );
       case 'resources':
         return (
-          <ResourcesView />
+          <ResourcesView contacts={contacts} />
         );
       case 'assistant':
         return (
           <AssistantView />
-        );
-      case 'checkin':
-        return (
-          <CheckInView 
-            onConfirmSafety={handleConfirmSafety} 
-            countdownMinutes={countdownMinutes}
-          />
         );
       case 'account':
         return (
@@ -196,6 +192,8 @@ export default function App() {
             onSosTrigger={triggerSos} 
             lastCheckInTime={lastCheckInTime}
             setLastCheckInTime={setLastCheckInTime}
+            profileName={profile.name}
+            contacts={contacts}
           />
         );
     }
@@ -206,7 +204,7 @@ export default function App() {
     setDecoyModeActive(isDecoy);
   };
 
-  const isDarkBackgroundScreen = ['resources', 'checkin'].includes(screen);
+  const isDarkBackgroundScreen = ['resources'].includes(screen);
 
   return (
     <div className={`min-h-screen flex flex-col font-sans select-none overflow-x-hidden transition-all duration-500 relative ${
@@ -284,7 +282,7 @@ export default function App() {
       </main>
 
       {/* Universal Interactive Active Background Safety Companion Mascot */}
-      {screen !== 'sos' && (
+      {screen !== 'sos' && screen !== 'account' && (
         <div className="fixed bottom-24 right-4 md:right-[calc(50%-280px)] z-40 pointer-events-auto select-none">
           <div className="flex flex-col items-center select-none">
             {/* Soft glowing beacon label above the companion */}

@@ -85,6 +85,8 @@ export function migrateLocalStorageKeys(encrypt: boolean) {
     'endlif_emergency_services',
     'endlif_selected_preset',
     'endlif_last_safe_confirm_date',
+    'endlif_last_safe_confirm_timestamp',
+    'endlif_checkin_threshold',
     'endlif_contacts'
   ];
 

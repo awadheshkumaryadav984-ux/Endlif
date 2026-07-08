@@ -8,7 +8,7 @@ export interface Contact {
   phone?: string;
 }
 
-export type Screen = 'home' | 'circle' | 'resources' | 'assistant' | 'checkin' | 'sos' | 'account' | 'creator_hub';
+export type Screen = 'home' | 'circle' | 'resources' | 'assistant' | 'sos' | 'account' | 'creator_hub';
 
 export interface EmergencyService {
   id: string;

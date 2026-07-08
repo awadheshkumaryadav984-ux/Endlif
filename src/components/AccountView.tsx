@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   User, 
@@ -10,24 +10,15 @@ import {
   Check, 
   Loader2, 
   Maximize2, 
-  AlertCircle, 
   Activity, 
   RefreshCw, 
   CheckCircle2, 
   AlertTriangle,
-  Heart,
   Shield,
-  Zap,
   Star,
   Lock,
-  Unlock,
   Key,
   Cpu,
-  EyeOff,
-  Eye,
-  ShieldAlert,
-  Server,
-  Terminal,
   Skull,
   ShieldCheck,
   MapPin
@@ -56,14 +47,61 @@ export default function AccountView({ setScreen }: { setScreen?: (screen: any) =
   const [devicePhone, setDevicePhone] = useState('+1 (555) 019-9800');
   const [dob, setDob] = useState('1998-05-14');
 
-  // Interactive 3D Avatar Customizer State
+  // Interactive 3D Avatar Customizer State (Shield Elephant, Ruby, Tactical Helmet, Active Firewall, Pacing Jog)
   const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>({
-    character: 'dragon',
-    theme: 'indigo',
-    accessory: 'none',
-    aura: 'none',
-    motionStyle: 'float'
+    character: 'elephant',
+    theme: 'ruby',
+    accessory: 'helmet',
+    aura: 'shield',
+    motionStyle: 'run'
   });
+
+  // Accordion Expand/Collapse State
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+
+  // Mascot States
+  const [mascotText, setMascotText] = useState("Ready.");
+  const [mascotBubbleVisible, setMascotBubbleVisible] = useState(true);
+  const [isMascotReacting, setIsMascotReacting] = useState(false);
+
+  // Auto-hide mascot bubble after some time
+  useEffect(() => {
+    setMascotBubbleVisible(true);
+    const timer = setTimeout(() => {
+      setMascotBubbleVisible(false);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [mascotText]);
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSection(prev => {
+      const next = prev === sectionId ? null : sectionId;
+      const isOpening = next !== null;
+      
+      // Update mascot text based on transition
+      setMascotText(isOpening ? "Let's customize your security." : "Ready.");
+      
+      // Trigger mascot wiggle/bounce animation
+      setIsMascotReacting(true);
+      setTimeout(() => setIsMascotReacting(false), 800);
+      
+      if (window.navigator?.vibrate) {
+        window.navigator.vibrate(15);
+      }
+      return next;
+    });
+  };
+
+  const updateAvatarConfig = (updated: Partial<AvatarConfig>) => {
+    setAvatarConfig(prev => {
+      const next = { ...prev, ...updated };
+      SecureStorage.setItem('endlif_user_avatar', JSON.stringify(next));
+      
+      // Dispatch updated event to sync globally
+      window.dispatchEvent(new Event('endlif_profile_updated'));
+      return next;
+    });
+  };
 
   // Fortified Cyber Security Active Guard Portal States
   const [cryptoShieldActive, setCryptoShieldActive] = useState(() => SecureStorage.isCryptoShieldActive());
@@ -323,864 +361,818 @@ export default function AccountView({ setScreen }: { setScreen?: (screen: any) =
     }
   };
 
+  // Mascot Animation Definitions
+  const mascotAnimation = {
+    idle: {
+      y: [0, -6, 0],
+      rotate: [-1.5, 1.5, -1.5],
+      transition: {
+        repeat: Infinity,
+        duration: 2.8,
+        ease: "easeInOut"
+      }
+    },
+    react: {
+      scale: [1, 1.25, 0.95, 1.1, 1],
+      rotate: [0, -12, 12, -8, 8, 0],
+      y: [0, -20, 3, -3, 0],
+      transition: {
+        duration: 0.75,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  const renderAccordionItem = (
+    id: string,
+    titleText: string,
+    content: React.ReactNode
+  ) => {
+    const isExpanded = expandedSection === id;
+    return (
+      <div key={id} className="bg-white border border-slate-200 rounded-[24px] p-5 shadow-sm transition-all relative overflow-hidden text-left">
+        <button
+          type="button"
+          onClick={() => toggleSection(id)}
+          className="w-full flex justify-between items-center outline-none cursor-pointer select-none text-left"
+        >
+          <span className="text-sm font-black text-slate-800 tracking-tight flex items-center gap-2">
+            {titleText}
+          </span>
+          <motion.span
+            animate={{ rotate: isExpanded ? 180 : 0 }}
+            transition={{ duration: 0.25 }}
+            className="text-slate-450 font-mono text-sm leading-none shrink-0"
+          >
+            ▼
+          </motion.span>
+        </button>
+
+        <AnimatePresence initial={false}>
+          {isExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.28, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <div className="pt-4 border-t border-slate-100 mt-4">
+                {content}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
+  const currentChar = CHARACTER_OPTIONS.find(c => c.id === avatarConfig.character) || CHARACTER_OPTIONS[0];
+  const charTitle = `${currentChar.emoji} Digital Species — ${currentChar.name}`;
+
+  const currentTheme = THEME_OPTIONS.find(t => t.id === avatarConfig.theme) || THEME_OPTIONS[0];
+  const capitalizedThemeId = avatarConfig.theme.charAt(0).toUpperCase() + avatarConfig.theme.slice(1);
+  const themeTitle = `🎨 Theme Color — ${capitalizedThemeId}`;
+
+  const currentAccessory = ACCESSORY_OPTIONS.find(a => a.id === avatarConfig.accessory) || ACCESSORY_OPTIONS[0];
+  const accessoryTitle = `${currentAccessory.label || '❌'} Tactical Accessory — ${currentAccessory.name}`;
+
+  const currentAura = AURA_OPTIONS.find(au => au.id === avatarConfig.aura) || AURA_OPTIONS[0];
+  const auraTitle = `🛡️ Defense Aura — ${currentAura.name}`;
+
+  const MOTION_STYLES = [
+    { id: 'float', name: 'Float Bubble' },
+    { id: 'spin', name: 'Holo Spin' },
+    { id: 'bounce', name: 'Bouncy Jump' },
+    { id: 'run', name: 'Pacing Jog' }
+  ] as const;
+  const currentMovement = MOTION_STYLES.find(m => m.id === avatarConfig.motionStyle) || MOTION_STYLES[0];
+  const movementTitle = `🏃 Movement Style — ${currentMovement.name}`;
+
+  const securityCenterTitle = `🔒 Cyber Security Control Center`;
+
   return (
-    <div className="flex flex-col p-6 pb-32 max-w-[600px] mx-auto w-full mt-16 text-slate-800">
+    <div className="flex flex-col p-6 pb-32 max-w-[600px] mx-auto w-full mt-16 text-slate-800 relative min-h-[80vh]">
       {/* Title Header */}
       <div className="mb-6 text-left">
         <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none">
-          Safety Account
+          Safety Profile
         </h2>
         <p className="text-xs text-slate-500 font-semibold uppercase mt-1.5 tracking-wider">
-          Registry details for dispatch identification
+          Secure configuration panel
         </p>
       </div>
 
-      <div className="space-y-6">
-        {/* Core Profile Registration details form card */}
-        <div className="bg-white border border-slate-200 rounded-[28px] p-6 shadow-sm space-y-4">
-          <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 border-b border-slate-100 pb-3">
-            <User className="w-4 h-4 text-indigo-600" /> Personal Identity Records
-          </h3>
-
-          <div className="space-y-3">
-            {/* Full name input */}
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">
-                Full Name
-              </label>
-              <div className="relative flex items-center">
-                <User className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
-                <input 
-                  type="text" 
+      <div className="space-y-4">
+        {/* Accordion Item: Identity & Credentials */}
+        {renderAccordionItem('account_making', `👤 Identity & Account Credentials`, (
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-indigo-500" /> Full Name
+                </label>
+                <input
+                  type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl py-2.5 pl-10 pr-4 text-xs font-semibold text-slate-800 outline-none transition-colors"
-                  placeholder="Enter full legal name"
+                  className="w-full bg-slate-50 border border-slate-200 py-2 px-3 rounded-xl text-xs font-semibold focus:border-indigo-500 focus:bg-white outline-none transition-all text-slate-800"
+                  placeholder="e.g. Adele Vance"
                 />
               </div>
-            </div>
 
-            {/* Email Address */}
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">
-                Secure Email Address
-              </label>
-              <div className="relative flex items-center">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
-                <input 
-                  type="email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl py-2.5 pl-10 pr-4 text-xs font-semibold text-slate-800 outline-none transition-colors"
-                  placeholder="name@domain.com"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-indigo-500" /> Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 py-2 px-3 rounded-xl text-xs font-semibold focus:border-indigo-500 focus:bg-white outline-none transition-all text-slate-800"
+                    placeholder="email@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-indigo-500" /> Device Phone
+                  </label>
+                  <input
+                    type="text"
+                    value={devicePhone}
+                    onChange={(e) => setDevicePhone(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 py-2 px-3 rounded-xl text-xs font-semibold focus:border-indigo-500 focus:bg-white outline-none transition-all text-slate-800"
+                    placeholder="+1 (555) 019-9800"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-500" /> Date of Birth
+                  </label>
+                  <input
+                    type="date"
+                    value={dob}
+                    onChange={(e) => setDob(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 py-2 px-3 rounded-xl text-xs font-semibold focus:border-indigo-500 focus:bg-white outline-none transition-all text-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
+                    Gender Group
+                  </label>
+                  <div className="grid grid-cols-3 gap-1 bg-slate-100 p-0.5 rounded-xl h-[38px] items-center">
+                    {(['Female', 'Male', 'Other'] as const).map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => setGender(g)}
+                        className={`py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${
+                          gender === g 
+                            ? 'bg-slate-900 text-white shadow-xs' 
+                            : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Device number */}
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">
-                Device Phone Number
-              </label>
-              <div className="relative flex items-center">
-                <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
-                <input 
-                  type="tel" 
-                  value={devicePhone}
-                  onChange={(e) => setDevicePhone(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl py-2.5 pl-10 pr-4 text-xs font-semibold text-slate-800 outline-none transition-colors font-mono"
-                  placeholder="+1 (000) 000-0000"
-                />
-              </div>
-            </div>
-
-            {/* Date of Birth */}
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">
-                Date of Birth
-              </label>
-              <div className="relative flex items-center">
-                <Calendar className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
-                <input 
-                  type="date" 
-                  value={dob}
-                  onChange={(e) => setDob(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl py-2.5 pl-10 pr-4 text-xs font-semibold text-slate-800 outline-none transition-colors font-mono cursor-pointer"
-                />
-              </div>
-            </div>
-
-            {/* Gender Identity Custom Segments Selector */}
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-2">
-                Gender Identity
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {(['Male', 'Female', 'Other'] as const).map((genderType) => (
-                  <button
-                    key={genderType}
-                    type="button"
-                    onClick={() => setGender(genderType)}
-                    className={`py-2 rounded-xl text-xs font-bold transition-all border outline-none cursor-pointer ${
-                      gender === genderType
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    {genderType}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* AI Face Recognition and Classification Scanning Module */}
-        <div className="bg-white border border-slate-200 rounded-[28px] p-6 shadow-sm space-y-4 overflow-hidden relative">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-              <Camera className="w-4 h-4 text-rose-500" /> Biometric Face Classifier
-            </h3>
-            <span className="text-[9px] bg-rose-50 text-rose-600 font-extrabold px-2 py-0.5 rounded-full border border-rose-100">
-              AI MODEL V4.2
-            </span>
-          </div>
-
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Need prompt registration? Skip typing & use our automated high-speed Biometric Scanner to analyze facial bone structures and sync gender instantly.
-          </p>
-
-          <AnimatePresence mode="wait">
-            {scanningStatus === 'idle' && (
-              <motion.div 
-                key="idle-state"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="pt-2"
+            <div className="pt-2.5 flex items-center justify-between gap-3 border-t border-slate-100">
+              <p className="text-[10px] text-slate-400 font-medium leading-normal max-w-[280px]">
+                Safety configurations are stored locally on your device with optional database security layers.
+              </p>
+              <button
+                type="button"
+                onClick={handleSaveProfile}
+                className="py-2 px-4 bg-slate-900 hover:bg-slate-850 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-98 cursor-pointer flex items-center gap-1.5 shrink-0"
               >
+                {saveSuccess ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" /> Saved
+                  </>
+                ) : (
+                  'Save Profile'
+                )}
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {/* Accordion Item: Biometric Face Scanner */}
+        {renderAccordionItem('face_detection', `📷 Biometric Face Detection Scan`, (
+          <div className="space-y-4 text-center">
+            {scanningStatus === 'idle' && (
+              <div className="space-y-3 py-2">
+                <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center mx-auto bg-slate-50/50">
+                  <Camera className="w-8 h-8 text-slate-400" />
+                </div>
+                <div className="max-w-sm mx-auto space-y-1.5">
+                  <h4 className="font-bold text-xs text-slate-800">No active scan file</h4>
+                  <p className="text-[10px] text-slate-400 leading-normal">
+                    Initiate a high-resolution facial scan using your device's camera to compute biometric profile variables.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={startCamera}
-                  className="w-full h-14 bg-rose-50 border border-rose-200 text-rose-600 rounded-2xl flex items-center justify-center gap-2.5 font-bold text-xs hover:bg-rose-100 transition-all cursor-pointer active:scale-[0.99]"
+                  className="py-2 px-4 bg-indigo-600 hover:bg-indigo-550 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-98 cursor-pointer inline-flex items-center gap-1.5"
                 >
-                  <Sparkles className="w-4 h-4 text-rose-550 animate-pulse" /> Launch Biometric Face Scan
+                  <Sparkles className="w-3.5 h-3.5" /> Initialize Facial Scanner
                 </button>
-              </motion.div>
+              </div>
             )}
 
             {(scanningStatus === 'initializing' || scanningStatus === 'scanning') && (
-              <motion.div 
-                key="scanner-running"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                className="space-y-4"
-              >
-                {/* Simulated / Real video viewport container */}
-                <div className="w-full aspect-square max-w-[280px] mx-auto bg-slate-950 rounded-[24px] overflow-hidden border-3 border-indigo-400 relative shadow-inner">
-                  
-                  {/* Camera stream view element */}
-                  <video 
-                    ref={videoRef}
-                    playsInline 
-                    muted 
-                    className={`w-full h-full object-cover rotation-90 ${isCameraActive ? 'block' : 'hidden'}`}
-                  />
-
-                  {/* Fallback elegant dynamic radar effect if camera blocked */}
-                  {!isCameraActive && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden bg-slate-950">
-                      {/* Biometric circles */}
-                      <div className="absolute w-44 h-44 rounded-full border border-indigo-500/25 animate-ping"></div>
-                      <div className="absolute w-32 h-32 rounded-full border-2 border-indigo-500/30 animate-[spin_12s_linear_infinite] flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-rose-500 absolute top-0"></div>
-                      </div>
-                      <div className="absolute w-20 h-20 rounded-full border border-dashed border-indigo-400/40 animate-[spin_6s_linear_infinite]"></div>
-                      <Maximize2 className="w-8 h-8 text-indigo-400/65 animate-[pulse_1.5s_infinite]" />
+              <div className="space-y-4 py-2">
+                {/* Visual Viewfinder container */}
+                <div className="relative w-40 h-40 rounded-full border-4 border-indigo-600 overflow-hidden mx-auto bg-slate-950 flex items-center justify-center shadow-lg">
+                  {isCameraActive ? (
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover transform -scale-x-100"
+                    />
+                  ) : (
+                    // Fallback visual matrix effect
+                    <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center overflow-hidden">
+                      {/* Grid scanning pattern */}
+                      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-500/20 via-transparent to-transparent animate-pulse" />
+                      <div className="w-full h-0.5 bg-indigo-500 absolute top-0 left-0 shadow-[0_0_8px_#6366f1] animate-[bounce_2s_infinite]" />
+                      <span className="text-[10px] font-mono font-black text-indigo-400 uppercase tracking-widest">
+                        FEED SIMULATION
+                      </span>
                     </div>
                   )}
 
-                  {/* Holographic Glowing Scanner laser line moving up and down */}
-                  <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-red-500/0 via-rose-500 to-red-500/0 shadow-[0_0_12px_#f43f5e] z-30 animate-[bounce_3s_infinite_ease-in-out]"></div>
+                  {/* Circular scanning overlay line */}
+                  <div className="absolute inset-x-0 w-full h-[2px] bg-indigo-400 shadow-[0_0_8px_#818cf8] biometric-scan-line pointer-events-none" />
+                  
+                  {/* Target crosshairs */}
+                  <div className="absolute w-6 h-[1px] bg-indigo-400/50" />
+                  <div className="absolute h-6 w-[1px] bg-indigo-400/50" />
+                </div>
 
-                  {/* Aesthetic Target Corner brackets */}
-                  <div className="absolute top-4 left-4 w-5 h-5 border-t-2 border-l-2 border-indigo-400"></div>
-                  <div className="absolute top-4 right-4 w-5 h-5 border-t-2 border-r-2 border-indigo-400"></div>
-                  <div className="absolute bottom-4 left-4 w-5 h-5 border-b-2 border-l-2 border-indigo-400"></div>
-                  <div className="absolute bottom-4 right-4 w-5 h-5 border-b-2 border-r-2 border-indigo-400"></div>
-
-                  {/* Live HUD telemetry text */}
-                  <div className="absolute bottom-3 left-3 right-3 bg-slate-900/85 backdrop-blur-xs border border-slate-800 rounded-lg p-2 z-10">
-                    <div className="flex items-center justify-between text-[8px] font-black font-mono text-indigo-400 mb-0.5 tracking-wider">
-                      <span>BIOMETRIC RADAR</span>
-                      <span>{scanProgress}% CALIBRATED</span>
-                    </div>
-                    {/* Tiny micro progress track */}
-                    <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-rose-500 transition-all duration-100" style={{ width: `${scanProgress}%` }}></div>
-                    </div>
+                <div className="space-y-2 max-w-sm mx-auto">
+                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
+                    <span>PROGRESS</span>
+                    <span>{scanProgress}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-indigo-600 transition-all duration-300" style={{ width: `${scanProgress}%` }} />
+                  </div>
+                  <div className="bg-slate-950 text-indigo-400 font-mono text-[9px] py-1.5 px-3 rounded-lg border border-slate-800 text-left h-10 overflow-hidden select-none">
+                    <span className="animate-pulse mr-1">&gt;</span>
+                    {telemetryLog}
                   </div>
                 </div>
 
-                {/* Status logs */}
-                <div className="text-center space-y-1 bg-slate-50 border border-slate-100 rounded-xl p-3">
-                  <div className="flex justify-center items-center gap-2">
-                    <Loader2 className="w-3.5 h-3.5 text-indigo-600 animate-spin" />
-                    <span className="text-[11px] font-mono leading-none tracking-wider text-slate-500 uppercase">TELEMETRY STREAM:</span>
-                  </div>
-                  <p className="text-xs font-bold text-slate-700 font-mono italic">
-                    "{telemetryLog}"
-                  </p>
-                </div>
-
-                {/* Cancel scanner button */}
-                <div className="flex justify-center">
-                  <button
-                    type="button"
-                    onClick={cancelScanner}
-                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-xs font-bold transition-all cursor-pointer"
-                  >
-                    Cancel Scan
-                  </button>
-                </div>
-              </motion.div>
+                <button
+                  type="button"
+                  onClick={cancelScanner}
+                  className="py-1.5 px-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-lg transition-all cursor-pointer"
+                >
+                  Cancel Scanner
+                </button>
+              </div>
             )}
 
-            {scanningStatus === 'success' && scanOutput && (
-              <motion.div 
-                key="scan-success-state"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-center space-y-3 shadow-inner"
-              >
-                <div className="w-12 h-12 bg-emerald-50 rounded-full border border-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
-                  <CheckCircle2 className="w-6 h-6 animate-pulse" />
+            {scanningStatus === 'success' && (
+              <div className="space-y-4 py-2">
+                <div className="w-20 h-20 rounded-full bg-emerald-50 border border-emerald-150 flex items-center justify-center mx-auto text-emerald-600">
+                  <CheckCircle2 className="w-10 h-10 animate-[bounce_0.6s_ease-out]" />
+                </div>
+                
+                <div className="max-w-xs mx-auto bg-slate-50 border border-slate-150 p-3 rounded-2xl space-y-2">
+                  <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-150 px-2 py-0.5 rounded uppercase tracking-wider">
+                    Scan Authorized
+                  </span>
+                  <div className="grid grid-cols-2 gap-2 text-left pt-1">
+                    <div className="bg-white p-2 rounded-xl border border-slate-100">
+                      <span className="text-[8px] font-bold text-slate-400 block uppercase">Classified Gen</span>
+                      <span className="text-xs font-black text-slate-800">{scanOutput?.gender}</span>
+                    </div>
+                    <div className="bg-white p-2 rounded-xl border border-slate-100">
+                      <span className="text-[8px] font-bold text-slate-400 block uppercase">Confidence</span>
+                      <span className="text-xs font-black text-slate-800 font-mono">{scanOutput?.confidence}%</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none">Diagnostic Complete</h4>
-                  <p className="text-xl font-black text-slate-800 tracking-tight mt-1.5 leading-none">
-                    Detected: <span className="text-indigo-600">{scanOutput.gender}</span>
-                  </p>
-                  <p className="text-[10px] font-bold text-emerald-600 font-mono mt-1">
-                    Biometric confidence match: {scanOutput.confidence}%
-                  </p>
-                </div>
-
-                {/* Quick actions for detected gender */}
-                <div className="flex gap-2 pt-1 max-w-[320px] mx-auto">
+                <div className="flex justify-center gap-2">
                   <button
                     type="button"
                     onClick={applyClassifiedGender}
-                    className="flex-1 py-2 bg-indigo-650 hover:bg-indigo-600 text-white font-bold text-xs rounded-xl cursor-pointer shadow-xs transition-all flex items-center justify-center gap-1 active:scale-[0.98]"
+                    className="py-2 px-4 bg-slate-900 hover:bg-slate-850 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-98 cursor-pointer flex items-center gap-1"
                   >
-                    <Check className="w-3.5 h-3.5" /> Apply Detected Gender
+                    Apply to Profile
                   </button>
                   <button
                     type="button"
                     onClick={startCamera}
-                    className="py-2 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 font-bold text-xs rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1 active:scale-[0.98]"
-                    title="Rescan"
+                    className="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-all cursor-pointer"
                   >
-                    <RefreshCw className="w-3.5 h-3.5" /> Retry
+                    Retake Scan
                   </button>
                 </div>
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
-        </div>
-
-        {/* 3D Holographic Companion Avatar Creator Card */}
-        <div className="bg-white border border-slate-200 rounded-[28px] p-6 shadow-sm space-y-6 relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 via-rose-500 to-emerald-400 opacity-80" />
-          
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-indigo-600 animate-pulse" /> 3D Cyber Mascot Maker
-            </h3>
-            <span className="text-[9px] bg-indigo-50 text-indigo-650 font-extrabold px-2.5 py-0.5 rounded-full border border-indigo-150">
-              CUSTOM COMPANION
-            </span>
           </div>
+        ))}
 
-          <p className="text-xs text-slate-500 leading-relaxed -mt-1 text-left">
-            Design your tactical 3D companion! Once configured, this animated avatar runs fluidly in the background of your safety screens. Tap on them anywhere to run high-speed diagnostic sprints.
-          </p>
-
-          {/* Real-time Preview Stage with Specular glass lighting */}
-          <div className="w-full bg-slate-950 rounded-2xl p-5 border border-slate-900 flex flex-col items-center justify-center relative overflow-hidden shadow-inner">
-            <div className="absolute inset-0 bg-gradient-to-tr from-slate-900 via-indigo-950/20 to-slate-950 pointer-events-none" />
-            <div className="absolute top-2 left-3 flex items-center gap-1.5">
-              <span className="text-[8px] font-mono font-black text-rose-500 tracking-wider animate-pulse">● LIVE PREVIEW HOLOGRAPHIC VIEWPORT</span>
-            </div>
-
-            {/* Simulated target crosshair */}
-            <div className="absolute w-[180px] h-[180px] rounded-full border border-dashed border-slate-800 pointer-events-none" />
-
-            {/* The live avatar view */}
-            <ThreeDAvatar config={avatarConfig} size="xl" interactive={true} />
-
-            <div className="text-center mt-2 relative z-10 space-y-0.5">
-              <p className="text-sm font-black text-slate-100 tracking-tight leading-none uppercase">
-                {CHARACTER_OPTIONS.find(c => c.id === avatarConfig.character)?.name || 'Custom Buddy'}
-              </p>
-              <p className="text-[9px] font-mono text-slate-450 font-extrabold uppercase tracking-wide">
-                Active Protocol: <strong className="text-indigo-400 font-bold">{avatarConfig.motionStyle}</strong> • Theme: <strong className="text-rose-400 font-bold">{avatarConfig.theme}</strong>
-              </p>
-              <p className="text-[8px] text-slate-500 font-bold tracking-widest leading-normal">
-                TAP THE MASCOT ABOVE TO TRIGGER INSTANT KINETIC SPRINT ANIMATION
-              </p>
-            </div>
-          </div>
-
-          {/* Interactive customization controls */}
-          <div className="space-y-4 text-left">
-            
-            {/* Control 1: Character Select */}
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono mb-2">
-                1. Select Digital Species
-              </label>
-              <div className="grid grid-cols-2 gap-2 max-h-[170px] overflow-y-auto pr-1 scrollbar-none">
-                {CHARACTER_OPTIONS.map((char) => (
-                  <button
-                    key={char.id}
-                    type="button"
-                    onClick={() => setAvatarConfig(prev => ({ ...prev, character: char.id }))}
-                    className={`p-2.5 rounded-xl border text-left transition-all outline-none flex items-center gap-3 cursor-pointer ${
-                      avatarConfig.character === char.id
-                        ? 'bg-slate-950 border-indigo-600 text-white shadow-md'
-                        : 'bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    <span className="text-2xl font-sans filter drop-shadow-sm select-none">{char.emoji}</span>
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-black leading-none truncate">{char.name}</p>
-                      <p className={`text-[8px] mt-0.5 leading-none font-medium truncate ${
-                        avatarConfig.character === char.id ? 'text-indigo-400' : 'text-slate-400'
-                      }`}>
-                        {char.desc}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Control 2: Skin Colors */}
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono mb-2">
-                2. Cyber gradient Theme Color
-              </label>
-              <div className="grid grid-cols-5 gap-2">
-                {THEME_OPTIONS.map((theme) => {
-                  const isActive = avatarConfig.theme === theme.id;
-                  return (
-                    <button
-                      key={theme.id}
-                      type="button"
-                      onClick={() => setAvatarConfig(prev => ({ ...prev, theme: theme.id }))}
-                      className={`h-11 rounded-xl bg-gradient-to-tr ${theme.from} border transition-all relative flex flex-col items-center justify-center outline-none cursor-pointer ${
-                        isActive ? 'border-indigo-600 scale-105 shadow-md ring-2 ring-indigo-50/40' : 'border-slate-200 hover:scale-102'
-                      }`}
-                      title={theme.name}
-                    >
-                      {isActive && (
-                        <div className="w-4 h-4 rounded-full bg-white text-slate-900 flex items-center justify-center shadow-sm">
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                        </div>
-                      )}
-                      <span className="text-[8px] font-black font-mono text-slate-800 brightness-155 bg-white/80 px-1 py-0.2 rounded-sm mt-1 whitespace-nowrap scale-90">
-                        {theme.id.toUpperCase()}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Control 3: Accessories */}
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono mb-2">
-                3. Choose Tactical Accessory
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {ACCESSORY_OPTIONS.map((acc) => {
-                  const isActive = avatarConfig.accessory === acc.id;
-                  return (
-                    <button
-                      key={acc.id}
-                      type="button"
-                      onClick={() => setAvatarConfig(prev => ({ ...prev, accessory: acc.id }))}
-                      className={`py-2 rounded-xl text-xs font-bold transition-all border outline-none flex items-center justify-center gap-1.5 cursor-pointer ${
-                        isActive
-                          ? 'bg-slate-950 text-white border-slate-950 shadow-sm'
-                          : 'bg-white text-slate-650 border-slate-200 hover:border-slate-350 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className="text-sm font-sans select-none">{acc.label || '❌'}</span>
-                      <span className="text-[10px] font-black tracking-tight">{acc.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Control 4: Energy Fields / Auras */}
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono mb-2">
-                4. Select Radiant Defense Aura
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {AURA_OPTIONS.map((aur) => {
-                  const isActive = avatarConfig.aura === aur.id;
-                  const Icon = aur.icon;
-                  return (
-                    <button
-                      key={aur.id}
-                      type="button"
-                      onClick={() => setAvatarConfig(prev => ({ ...prev, aura: aur.id }))}
-                      className={`py-2 rounded-xl text-xs font-bold transition-all border outline-none flex items-center justify-center gap-1.5 cursor-pointer ${
-                        isActive
-                          ? 'bg-slate-950 text-white border-slate-950 shadow-sm'
-                          : 'bg-white text-slate-650 border-slate-200 hover:border-slate-350 hover:bg-slate-50'
-                      }`}
-                    >
-                      {Icon ? <Icon className="w-3.5 h-3.5 text-indigo-500 animate-[pulse_1.2s_infinite]" /> : <span>❌</span>}
-                      <span className="text-[10px] font-black tracking-tight">{aur.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Control 5: Movement animation behavior */}
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono mb-2">
-                5. Mascot Movement Animation Strategy
-              </label>
-              <div className="grid grid-cols-4 gap-2">
-                {([
-                  { id: 'float', name: 'Float Bubble' },
-                  { id: 'spin', name: 'Holo Spin' },
-                  { id: 'bounce', name: 'Bouncy Jump' },
-                  { id: 'run', name: 'Pacing Jog' }
-                ] as const).map((style) => {
-                  const isActive = avatarConfig.motionStyle === style.id;
-                  return (
-                    <button
-                      key={style.id}
-                      type="button"
-                      onClick={() => setAvatarConfig(prev => ({ ...prev, motionStyle: style.id }))}
-                      className={`py-2.5 rounded-xl text-[10px] font-extrabold tracking-tight transition-all border outline-none cursor-pointer ${
-                        isActive
-                          ? 'bg-indigo-600 text-white border-indigo-650 shadow-md'
-                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      {style.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Fortified Cyber Security Active Guard Portal Card */}
-        <div className="bg-white border border-slate-200 rounded-[28px] p-6 shadow-sm space-y-5 text-left relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-indigo-600 to-rose-500 opacity-90" />
-          
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-              <Shield className="w-4 h-4 text-emerald-600 animate-pulse" /> Cyber Security Control Center
-            </h3>
-            <span className="text-[9px] bg-emerald-50 text-emerald-650 font-extrabold px-2.5 py-0.5 rounded-full border border-emerald-150 uppercase tracking-widest">
-              Active Defense
-            </span>
-          </div>
-
-          <p className="text-xs text-slate-500 leading-relaxed -mt-1">
-            Configure dynamic physical sandbox blocks, storage encryption shields, and run deep diagnostic telemetry audits to secure on-device safety databases.
-          </p>
-
-          {/* Tab Selection */}
-          <div className="grid grid-cols-3 gap-1 bg-slate-100 rounded-xl p-1 text-[10px] font-black uppercase tracking-wider">
-            <button
-              type="button"
-              onClick={() => setActiveSecTab('controls')}
-              className={`py-2 rounded-lg cursor-pointer transition-all ${
-                activeSecTab === 'controls' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-450 hover:text-slate-700'
-              }`}
-            >
-              Shields
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSecTab('audit')}
-              className={`py-2 rounded-lg cursor-pointer transition-all flex items-center justify-center gap-1 ${
-                activeSecTab === 'audit' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-450 hover:text-slate-700'
-              }`}
-            >
-              Audits {auditScore >= 0 && <span className={`text-[8px] font-mono px-1 rounded ${auditScore === 100 ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'}`}>{auditScore}%</span>}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveSecTab('intruder');
-                // Refresh intruder logs
-                try {
-                  setIntruderLogs(JSON.parse(localStorage.getItem('endlif_intruder_logs') || '[]'));
-                } catch {
-                  setIntruderLogs([]);
-                }
-              }}
-              className={`py-2 rounded-lg cursor-pointer transition-all flex items-center justify-center gap-1 ${
-                activeSecTab === 'intruder' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-450 hover:text-slate-700'
-              }`}
-            >
-              Intruders {intruderLogs.length > 0 && <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-ping" />}
-            </button>
-          </div>
-
-          {/* Conditional Content Layouts */}
-          <AnimatePresence mode="wait">
-            {activeSecTab === 'controls' && (
-              <motion.div
-                key="sec-tab-controls"
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                transition={{ duration: 0.12 }}
-                className="space-y-4"
+        {/* Accordion Item 1: Digital Species */}
+        {renderAccordionItem('species', charTitle, (
+          <div className="grid grid-cols-2 gap-2 max-h-[170px] overflow-y-auto pr-1">
+            {CHARACTER_OPTIONS.map((char) => (
+              <button
+                key={char.id}
+                type="button"
+                onClick={() => updateAvatarConfig({ character: char.id })}
+                className={`p-3 rounded-2xl border text-left transition-all outline-none flex items-center gap-3 cursor-pointer ${
+                  avatarConfig.character === char.id
+                    ? 'bg-slate-900 border-slate-950 text-white shadow-md scale-[1.01]'
+                    : 'bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-slate-100/70 text-slate-700'
+                }`}
               >
-                {/* Switch 1: Crypto storage scrambler */}
-                <div className="bg-slate-50 border border-slate-150 p-3 rounded-2xl flex items-start gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-150 flex items-center justify-center text-emerald-600 shrink-0 mt-0.5">
-                    <Key className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0 text-left">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-extrabold text-[11px] text-slate-900 uppercase tracking-tight">Storage Scrambler</span>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleCryptoShield(!cryptoShieldActive)}
-                        className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer outline-none shrink-0 ${
-                          cryptoShieldActive ? 'bg-emerald-500' : 'bg-slate-300'
-                        }`}
-                      >
-                        <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${cryptoShieldActive ? 'translate-x-4' : 'translate-x-0'}`} />
-                      </button>
-                    </div>
-                    <p className="text-[10px] text-slate-450 leading-normal mt-0.5">
-                      Encrypted XOR-shifted cypher blocks protect local safety records, emergency numbers, and profile details from cookie spyware elements.
-                    </p>
-                    {cryptoShieldActive ? (
-                      <div className="mt-1.5 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[8px] font-mono font-bold text-emerald-600 uppercase">Obfuscation Active</span>
-                      </div>
-                    ) : (
-                      <div className="mt-1.5 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                        <span className="text-[8px] font-mono font-bold text-amber-600 uppercase">Plaintext state: Vulnerable</span>
-                      </div>
-                    )}
-                  </div>
+                <span className="text-2xl filter drop-shadow-sm select-none">{char.emoji}</span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-black leading-none truncate">{char.name}</p>
+                  <p className={`text-[8.5px] mt-1 leading-none font-semibold truncate ${
+                    avatarConfig.character === char.id ? 'text-indigo-400' : 'text-slate-400'
+                  }`}>
+                    {char.desc}
+                  </p>
                 </div>
+              </button>
+            ))}
+          </div>
+        ))}
 
-                {/* Switch 2: Vault lock gate configuration */}
-                <div className="bg-slate-50 border border-slate-150 p-3 rounded-2xl space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-150 flex items-center justify-center text-indigo-600 shrink-0 mt-0.5">
-                      <Lock className="w-4 h-4" />
+        {/* Accordion Item 2: Theme Color */}
+        {renderAccordionItem('theme', themeTitle, (
+          <div className="grid grid-cols-5 gap-2">
+            {THEME_OPTIONS.map((theme) => {
+              const isActive = avatarConfig.theme === theme.id;
+              return (
+                <button
+                  key={theme.id}
+                  type="button"
+                  onClick={() => updateAvatarConfig({ theme: theme.id })}
+                  className={`h-12 rounded-xl bg-gradient-to-tr ${theme.from} border transition-all relative flex flex-col items-center justify-center outline-none cursor-pointer ${
+                    isActive ? 'border-slate-900 scale-105 shadow-md ring-2 ring-slate-100' : 'border-slate-200 hover:scale-102'
+                  }`}
+                  title={theme.name}
+                >
+                  {isActive && (
+                    <div className="w-4 h-4 rounded-full bg-white text-slate-900 flex items-center justify-center shadow-sm absolute -top-1 -right-1">
+                      <Check className="w-2.5 h-2.5 stroke-[3]" />
+                    </div>
+                  )}
+                  <span className="text-[8px] font-black font-mono text-slate-800 brightness-155 bg-white/80 px-1 py-0.2 rounded-sm whitespace-nowrap scale-90">
+                    {theme.id.toUpperCase()}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+
+        {/* Accordion Item 3: Tactical Accessory */}
+        {renderAccordionItem('accessory', accessoryTitle, (
+          <div className="grid grid-cols-3 gap-2">
+            {ACCESSORY_OPTIONS.map((acc) => {
+              const isActive = avatarConfig.accessory === acc.id;
+              return (
+                <button
+                  key={acc.id}
+                  type="button"
+                  onClick={() => updateAvatarConfig({ accessory: acc.id })}
+                  className={`py-2.5 rounded-xl text-xs font-bold transition-all border outline-none flex items-center justify-center gap-1.5 cursor-pointer ${
+                    isActive
+                      ? 'bg-slate-900 text-white border-slate-950 shadow-sm'
+                      : 'bg-white text-slate-650 border-slate-200 hover:border-slate-350 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="text-sm font-sans select-none">{acc.label || '❌'}</span>
+                  <span className="text-[10px] font-black tracking-tight">{acc.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+
+        {/* Accordion Item 4: Defense Aura */}
+        {renderAccordionItem('aura', auraTitle, (
+          <div className="grid grid-cols-3 gap-2">
+            {AURA_OPTIONS.map((aur) => {
+              const isActive = avatarConfig.aura === aur.id;
+              const Icon = aur.icon;
+              return (
+                <button
+                  key={aur.id}
+                  type="button"
+                  onClick={() => updateAvatarConfig({ aura: aur.id })}
+                  className={`py-2.5 rounded-xl text-xs font-bold transition-all border outline-none flex items-center justify-center gap-1.5 cursor-pointer ${
+                    isActive
+                      ? 'bg-slate-900 text-white border-slate-950 shadow-sm'
+                      : 'bg-white text-slate-650 border-slate-200 hover:border-slate-350 hover:bg-slate-50'
+                  }`}
+                >
+                  {Icon ? <Icon className="w-3.5 h-3.5 text-indigo-500 animate-[pulse_1.2s_infinite]" /> : <span>❌</span>}
+                  <span className="text-[10px] font-black tracking-tight">{aur.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+
+        {/* Accordion Item 5: Movement Style */}
+        {renderAccordionItem('motion', movementTitle, (
+          <div className="grid grid-cols-2 gap-2">
+            {MOTION_STYLES.map((style) => {
+              const isActive = avatarConfig.motionStyle === style.id;
+              return (
+                <button
+                  key={style.id}
+                  type="button"
+                  onClick={() => updateAvatarConfig({ motionStyle: style.id })}
+                  className={`py-3 rounded-xl text-xs font-extrabold tracking-tight transition-all border outline-none cursor-pointer ${
+                    isActive
+                      ? 'bg-indigo-600 text-white border-indigo-650 shadow-md'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-350'
+                  }`}
+                >
+                  {style.name}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+
+        {/* Accordion Item 6: Cyber Security Control Center */}
+        {renderAccordionItem('security', securityCenterTitle, (
+          <div className="space-y-4 text-left">
+            {/* Tab Selection */}
+            <div className="grid grid-cols-3 gap-1 bg-slate-100 rounded-xl p-1 text-[10px] font-black uppercase tracking-wider">
+              <button
+                type="button"
+                onClick={() => setActiveSecTab('controls')}
+                className={`py-2 rounded-lg cursor-pointer transition-all ${
+                  activeSecTab === 'controls' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-450 hover:text-slate-700'
+                }`}
+              >
+                Shields
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSecTab('audit')}
+                className={`py-2 rounded-lg cursor-pointer transition-all flex items-center justify-center gap-1 ${
+                  activeSecTab === 'audit' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-450 hover:text-slate-700'
+                }`}
+              >
+                Audits {auditScore >= 0 && <span className={`text-[8px] font-mono px-1 rounded ${auditScore === 100 ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'}`}>{auditScore}%</span>}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSecTab('intruder');
+                  try {
+                    setIntruderLogs(JSON.parse(localStorage.getItem('endlif_intruder_logs') || '[]'));
+                  } catch {
+                    setIntruderLogs([]);
+                  }
+                }}
+                className={`py-2 rounded-lg cursor-pointer transition-all flex items-center justify-center gap-1 ${
+                  activeSecTab === 'intruder' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-450 hover:text-slate-700'
+                }`}
+              >
+                Intruders {intruderLogs.length > 0 && <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-ping" />}
+              </button>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {activeSecTab === 'controls' && (
+                <motion.div
+                  key="sec-tab-controls"
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  transition={{ duration: 0.12 }}
+                  className="space-y-4"
+                >
+                  <div className="bg-slate-50 border border-slate-150 p-3 rounded-2xl flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-150 flex items-center justify-center text-emerald-600 shrink-0 mt-0.5">
+                      <Key className="w-4 h-4" />
                     </div>
                     <div className="flex-1 min-w-0 text-left">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-extrabold text-[11px] text-slate-900 uppercase tracking-tight">Tactical PIN Lock Gate</span>
+                        <span className="font-extrabold text-[11px] text-slate-900 uppercase tracking-tight">Storage Scrambler</span>
                         <button
                           type="button"
-                          onClick={() => {
-                            setPinLockEnabled(!pinLockEnabled);
-                            if (window.navigator?.vibrate) window.navigator.vibrate([100]);
-                          }}
+                          onClick={() => handleToggleCryptoShield(!cryptoShieldActive)}
                           className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer outline-none shrink-0 ${
-                            pinLockEnabled ? 'bg-indigo-600' : 'bg-slate-300'
+                            cryptoShieldActive ? 'bg-emerald-500' : 'bg-slate-300'
                           }`}
                         >
-                          <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${pinLockEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                          <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${cryptoShieldActive ? 'translate-x-4' : 'translate-x-0'}`} />
                         </button>
                       </div>
-                      <p className="text-[10px] text-slate-450 leading-normal mt-0.5">
-                        Guards database access upon startup with biometric validation or a code code. Helps block physical theft threats.
+                      <p className="text-[10px] text-slate-455 leading-normal mt-0.5">
+                        Encrypted XOR-shifted cypher blocks protect local safety records, emergency numbers, and profile details from cookie spyware elements.
                       </p>
+                      {cryptoShieldActive ? (
+                        <div className="mt-1.5 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-[8px] font-mono font-bold text-emerald-600 uppercase">Obfuscation Active</span>
+                        </div>
+                      ) : (
+                        <div className="mt-1.5 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          <span className="text-[8px] font-mono font-bold text-amber-600 uppercase">Plaintext state: Vulnerable</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {pinLockEnabled && (
-                    <motion.div 
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="pt-2.5 border-t border-slate-200/50 grid grid-cols-2 gap-2 text-left"
-                    >
-                      <div>
-                        <label className="block text-[8px] font-black text-slate-400 uppercase tracking-wider mb-1">
-                          1. LOCK PIN CODE (4 Digits)
-                        </label>
-                        <input
-                          type="text"
-                          maxLength={4}
-                          value={appPin}
-                          onChange={(e) => setAppPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                          className="w-full bg-white border border-slate-200 py-1.5 px-2.5 rounded-lg text-xs font-mono font-bold tracking-widest text-indigo-600 focus:border-indigo-500 outline-none"
-                          placeholder="1234"
-                        />
+                  <div className="bg-slate-50 border border-slate-150 p-3 rounded-2xl space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-150 flex items-center justify-center text-indigo-600 shrink-0 mt-0.5">
+                        <Lock className="w-4 h-4" />
                       </div>
-                      <div>
-                        <label className="block text-[8px] font-black text-rose-450 uppercase tracking-wider mb-1 flex items-center gap-0.5">
-                          <Skull className="w-2.5 h-2.5 text-rose-500 shrink-0" /> 2. COERCION DECOY PIN
-                        </label>
-                        <input
-                          type="text"
-                          maxLength={4}
-                          value={decoyPin}
-                          onChange={(e) => setDecoyPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                          className="w-full bg-white border border-slate-200 py-1.5 px-2.5 rounded-lg text-xs font-mono font-bold tracking-widest text-rose-500 focus:border-rose-350 outline-none"
-                          placeholder="0000"
-                        />
-                      </div>
-                    </motion.div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-
-            {activeSecTab === 'audit' && (
-              <motion.div
-                key="sec-tab-audit"
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                transition={{ duration: 0.12 }}
-                className="space-y-4"
-              >
-                {/* Audit trigger section */}
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    disabled={isAuditing}
-                    onClick={runSecurityAudit}
-                    className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-550 text-white font-extrabold text-[10px] uppercase tracking-wider rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-50"
-                  >
-                    {isAuditing ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> SCRUBBING CONSOLE TELEMETRY...
-                      </>
-                    ) : (
-                      <>
-                        <Cpu className="w-3.5 h-3.5" /> Start Security Scan
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {isAuditing && (
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 text-center">
-                    <span className="text-[8px] font-mono font-black text-indigo-500 uppercase tracking-widest animate-pulse leading-none block">
-                      {activeAuditMessage}
-                    </span>
-                    <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-indigo-600 transition-all duration-300" style={{ width: `${auditProgress}%` }} />
-                    </div>
-                    <span className="text-[10px] font-mono text-slate-450">{auditProgress}% COMPLETE</span>
-                  </div>
-                )}
-
-                {/* Render results */}
-                {auditScore >= 0 && !isAuditing && (
-                  <div className="space-y-3">
-                    {/* Score banner */}
-                    <div className={`p-4 rounded-2xl flex items-center justify-between gap-4 border ${
-                      auditScore === 100 
-                        ? 'bg-emerald-50/50 border-emerald-150 text-emerald-850' 
-                        : 'bg-amber-50/50 border-amber-100 text-amber-850'
-                    }`}>
-                      <div className="space-y-1 text-left">
-                        <h4 className="font-extrabold text-[11px] uppercase tracking-wider text-slate-900">Shield Health Score</h4>
-                        <p className="text-[10px] text-slate-500 font-medium">
-                          {auditScore === 100 
-                            ? 'Excellent score! Fully fortified against data-extraction logs and device cloning.' 
-                            : 'Exposure warning: database is vulnerable to extract attacks. Auto-patch gaps below.'
-                          }
+                      <div className="flex-1 min-w-0 text-left">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-extrabold text-[11px] text-slate-900 uppercase tracking-tight">Tactical PIN Lock Gate</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPinLockEnabled(!pinLockEnabled);
+                              if (window.navigator?.vibrate) window.navigator.vibrate([100]);
+                            }}
+                            className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer outline-none shrink-0 ${
+                              pinLockEnabled ? 'bg-indigo-600' : 'bg-slate-300'
+                            }`}
+                          >
+                            <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${pinLockEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-455 leading-normal mt-0.5">
+                          Guards database access upon startup with biometric validation or a code. Helps block physical theft threats.
                         </p>
                       </div>
-                      <div className="text-right shrink-0">
-                        <span className={`text-2xl font-black font-mono tracking-tight ${auditScore === 100 ? 'text-emerald-600' : 'text-amber-600'}`}>{auditScore}%</span>
-                        <span className="text-[8px] uppercase font-bold text-slate-400 block tracking-widest">Fortress Match</span>
-                      </div>
                     </div>
 
-                    {/* Auto Fix Button if not 100 */}
-                    {auditScore < 100 && (
-                      <button
-                        type="button"
-                        onClick={autoFixVaultGaps}
-                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-550 border border-emerald-500 text-white font-black text-[10px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1.5 animate-pulse"
+                    {pinLockEnabled && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="pt-2.5 border-t border-slate-200/50 grid grid-cols-2 gap-2 text-left"
                       >
-                        <ShieldCheck className="w-3.5 h-3.5 stroke-[2.5]" /> Auto-Fix Vulnerability Gaps
-                      </button>
+                        <div>
+                          <label className="block text-[8px] font-black text-slate-405 uppercase tracking-wider mb-1">
+                            1. LOCK PIN CODE (4 Digits)
+                          </label>
+                          <input
+                            type="text"
+                            maxLength={4}
+                            value={appPin}
+                            onChange={(e) => setAppPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                            className="w-full bg-white border border-slate-200 py-1.5 px-2.5 rounded-lg text-xs font-mono font-bold tracking-widest text-indigo-600 focus:border-indigo-500 outline-none"
+                            placeholder="1234"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] font-black text-rose-405 uppercase tracking-wider mb-1 flex items-center gap-0.5">
+                            <Skull className="w-2.5 h-2.5 text-rose-500 shrink-0" /> 2. COERCION DECOY PIN
+                          </label>
+                          <input
+                            type="text"
+                            maxLength={4}
+                            value={decoyPin}
+                            onChange={(e) => setDecoyPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                            className="w-full bg-white border border-slate-200 py-1.5 px-2.5 rounded-lg text-xs font-mono font-bold tracking-widest text-rose-500 focus:border-rose-350 outline-none"
+                            placeholder="0000"
+                          />
+                        </div>
+                      </motion.div>
                     )}
-
-                    {/* Items */}
-                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                      {auditedResults.map((item, idx) => {
-                        const isOk = item.status === 'passed';
-                        return (
-                          <div key={idx} className="bg-slate-50 border border-slate-150 rounded-xl p-3 flex items-start gap-2.5 text-left">
-                            <span className="mt-0.5">
-                              {isOk ? (
-                                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                              ) : (
-                                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                              )}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <span className="text-[10px] font-extrabold text-slate-900 uppercase block tracking-tight">{item.title}</span>
-                              <p className="text-[9px] text-slate-500 leading-normal mt-0.5">{item.details}</p>
-                              {item.remedy && !isOk && (
-                                <span className="text-[8px] font-black text-indigo-650 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded uppercase mt-1 block w-fit">
-                                  Remedy: {item.remedy}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
                   </div>
-                )}
-              </motion.div>
-            )}
+                </motion.div>
+              )}
 
-            {activeSecTab === 'intruder' && (
-              <motion.div
-                key="sec-tab-intruder"
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                transition={{ duration: 0.12 }}
-                className="space-y-4"
-              >
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={simulateHackerAttack}
-                    className="flex-1 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-150 font-bold text-[9px] uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1 active:scale-98"
-                  >
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 animate-bounce" /> Simulate Hack Intruder
-                  </button>
-                  {intruderLogs.length > 0 && (
+              {activeSecTab === 'audit' && (
+                <motion.div
+                  key="sec-tab-audit"
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  transition={{ duration: 0.12 }}
+                  className="space-y-4"
+                >
+                  <div className="flex items-center gap-3">
                     <button
                       type="button"
-                      onClick={clearIntruderLogs}
-                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-550 border border-slate-200 font-bold text-[9px] uppercase tracking-wider rounded-xl cursor-pointer transition-all"
+                      disabled={isAuditing}
+                      onClick={runSecurityAudit}
+                      className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-550 text-white font-extrabold text-[10px] uppercase tracking-wider rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-50"
                     >
-                      Clear Logs
+                      {isAuditing ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> SCRUBBING CONSOLE TELEMETRY...
+                        </>
+                      ) : (
+                        <>
+                          <Cpu className="w-3.5 h-3.5" /> Start Security Scan
+                        </>
+                      )}
                     </button>
-                  )}
-                </div>
-
-                {intruderLogs.length === 0 ? (
-                  <div className="bg-slate-50 border border-slate-150 rounded-2xl py-6 px-4 text-center text-slate-400 space-y-2">
-                    <ShieldCheck className="w-8 h-8 text-emerald-500/30 mx-auto" />
-                    <p className="text-[10px] font-bold uppercase tracking-wider">Storage is quiet and locked</p>
-                    <p className="text-[9px] text-slate-450 leading-normal max-w-xs mx-auto">
-                      No intrusion threats recorded. Set your lock PIN above and enter keys incorrectly to test instant photo and geography tracking actions.
-                    </p>
                   </div>
-                ) : (
-                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-                    {intruderLogs.map((log) => (
-                      <div key={log.id} className="bg-rose-50/50 border border-rose-100/60 rounded-xl p-3 flex gap-3 text-left relative overflow-hidden">
-                        {log.snapshotUrl && (
-                          <div className="w-12 h-12 rounded-lg border border-rose-200 overflow-hidden shrink-0 bg-slate-950 flex items-center justify-center">
-                            <img src={log.snapshotUrl} referrerPolicy="no-referrer" alt="Silhouette" className="w-[105%] h-[105%] object-cover opacity-85 filter grayscale brightness-125" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[8px] font-black text-rose-600 bg-rose-100 border border-rose-150 px-1.5 py-0.5 rounded leading-none uppercase">
-                              Access Denied
-                            </span>
-                            <span className="text-[8px] font-mono text-slate-450 font-bold leading-none">{log.timestamp}</span>
-                          </div>
-                          <p className="text-[10px] font-bold text-slate-800 leading-normal">
-                            Entered PIN: <strong className="font-mono text-rose-600 text-xs font-black">{log.pinEntered}</strong>
+
+                  {isAuditing && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 text-center">
+                      <span className="text-[8px] font-mono font-black text-indigo-500 uppercase tracking-widest animate-pulse leading-none block">
+                        {activeAuditMessage}
+                      </span>
+                      <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                        <div className="h-full bg-indigo-600 transition-all duration-300" style={{ width: `${auditProgress}%` }} />
+                      </div>
+                      <span className="text-[10px] font-mono text-slate-455">{auditProgress}% COMPLETE</span>
+                    </div>
+                  )}
+
+                  {auditScore >= 0 && !isAuditing && (
+                    <div className="space-y-3">
+                      <div className={`p-4 rounded-2xl flex items-center justify-between gap-4 border ${
+                        auditScore === 100 
+                          ? 'bg-emerald-50/50 border-emerald-150 text-emerald-850' 
+                          : 'bg-amber-50/50 border-amber-100 text-amber-850'
+                      }`}>
+                        <div className="space-y-1 text-left">
+                          <h4 className="font-extrabold text-[11px] uppercase tracking-wider text-slate-900">Shield Health Score</h4>
+                          <p className="text-[10px] text-slate-500 font-medium">
+                            {auditScore === 100 
+                              ? 'Excellent score! Fully fortified against data-extraction logs.' 
+                              : 'Exposure warning: database is vulnerable to extract attacks.'
+                            }
                           </p>
-                          <div className="text-[8px] font-mono text-slate-500 flex items-center gap-0.5 pt-0.5 flex-wrap">
-                            <MapPin className="w-3 h-3 text-rose-500 mr-0.5" /> GPS Sector: {log.coords.lat}, {log.coords.lng} Base
-                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className={`text-2xl font-black font-mono tracking-tight ${auditScore === 100 ? 'text-emerald-600' : 'text-amber-600'}`}>{auditScore}%</span>
                         </div>
                       </div>
-                    ))}
+
+                      {auditScore < 100 && (
+                        <button
+                          type="button"
+                          onClick={autoFixVaultGaps}
+                          className="w-full py-2 bg-emerald-600 hover:bg-emerald-550 border border-emerald-500 text-white font-black text-[10px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1.5 animate-pulse"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5 stroke-[2.5]" /> Auto-Fix Vulnerability Gaps
+                        </button>
+                      )}
+
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        {auditedResults.map((item, idx) => {
+                          const isOk = item.status === 'passed';
+                          return (
+                            <div key={idx} className="bg-slate-50 border border-slate-150 rounded-xl p-3 flex items-start gap-2.5 text-left">
+                              <span className="mt-0.5">
+                                {isOk ? (
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                ) : (
+                                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                                )}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <span className="text-[10px] font-extrabold text-slate-900 uppercase block tracking-tight">{item.title}</span>
+                                <p className="text-[9px] text-slate-500 leading-normal mt-0.5">{item.details}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {activeSecTab === 'intruder' && (
+                <motion.div
+                  key="sec-tab-intruder"
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  transition={{ duration: 0.12 }}
+                  className="space-y-4"
+                >
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={simulateHackerAttack}
+                      className="flex-1 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-150 font-bold text-[9px] uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1 active:scale-98"
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 animate-bounce" /> Simulate Hack Intruder
+                    </button>
+                    {intruderLogs.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={clearIntruderLogs}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-550 border border-slate-200 font-bold text-[9px] uppercase tracking-wider rounded-xl cursor-pointer transition-all"
+                      >
+                        Clear Logs
+                      </button>
+                    )}
                   </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
 
-        {/* Creator Hub Settings Card */}
-        <div className="bg-gradient-to-tr from-slate-900 via-slate-950 to-indigo-950 text-white rounded-[28px] p-6 shadow-md border border-slate-800 text-left relative overflow-hidden space-y-4">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-505/10 rounded-full blur-xl" />
-          <div className="flex items-center justify-between border-b border-indigo-900/40 pb-3">
-            <h3 className="font-extrabold text-slate-100 text-xs tracking-wider uppercase flex items-center gap-2">
-              <Star className="w-4.5 h-4.5 text-amber-400 stroke-[2.5] animate-pulse" /> Creator Hub Dashboard
-            </h3>
-            <span className="text-[8px] bg-indigo-500/30 text-indigo-300 font-extrabold px-2.5 py-0.5 rounded uppercase tracking-wider font-mono">CHANNEL SYSTEM ONLINE</span>
+                  {intruderLogs.length === 0 ? (
+                    <div className="bg-slate-50 border border-slate-150 rounded-2xl py-6 px-4 text-center text-slate-400 space-y-2">
+                      <ShieldCheck className="w-8 h-8 text-emerald-500/30 mx-auto" />
+                      <p className="text-[10px] font-bold uppercase tracking-wider">Storage is quiet and locked</p>
+                      <p className="text-[9px] text-slate-455 leading-normal max-w-xs mx-auto">
+                        No intrusion threats recorded. Set your lock PIN above and enter keys incorrectly to test instant photo and geography tracking actions.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                      {intruderLogs.map((log) => (
+                        <div key={log.id} className="bg-rose-50/50 border border-rose-100/60 rounded-xl p-3 flex gap-3 text-left relative overflow-hidden">
+                          {log.snapshotUrl && (
+                            <div className="w-12 h-12 rounded-lg border border-rose-200 overflow-hidden shrink-0 bg-slate-950 flex items-center justify-center">
+                              <img src={log.snapshotUrl} referrerPolicy="no-referrer" alt="Silhouette" className="w-[105%] h-[105%] object-cover opacity-85 filter grayscale brightness-125" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[8px] font-black text-rose-600 bg-rose-100 border border-rose-150 px-1.5 py-0.5 rounded leading-none uppercase">
+                                Access Denied
+                              </span>
+                              <span className="text-[8px] font-mono text-slate-455 font-bold leading-none">{log.timestamp}</span>
+                            </div>
+                            <p className="text-[10px] font-bold text-slate-800 leading-normal">
+                              Entered PIN: <strong className="font-mono text-rose-600 text-xs font-black">{log.pinEntered}</strong>
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-          <p className="text-xs text-slate-350 leading-relaxed font-sans font-medium">
-            Form your community channel to spread emergency safety drills, offline first-aid measures, and digital cybersecurity checklists. Gain verified subscribers, invite peers, and unlock rewards!
-          </p>
-          <button
-            type="button"
-            onClick={() => setScreen && setScreen('creator_hub')}
-            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-550 border border-indigo-500/30 text-white font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5 active:scale-98"
-          >
-            Access Creator Dashboard &rarr;
-          </button>
-        </div>
-
-        {/* Primary Save Account profile action */}
-        <button
-          type="button"
-          onClick={handleSaveProfile}
-          className="w-full h-13 bg-indigo-600 hover:bg-indigo-505 text-white font-black text-sm rounded-2xl cursor-pointer shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
-        >
-          <Check className="w-5 h-5 stroke-[2.5]" /> Save Safety Profile
-        </button>
+        ))}
       </div>
 
-      {/* Success synchronization toast alert */}
-      <AnimatePresence>
-        {saveSuccess && (
-          <motion.div 
-            initial={{ opacity: 0, y: 50, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[150] bg-slate-900 border border-slate-800 text-white px-5 py-3.5 rounded-2xl flex items-center gap-2.5 shadow-xl font-mono text-xs"
-          >
-            <div className="w-4 h-4 rounded-full bg-emerald-500 text-slate-900 flex items-center justify-center">
-              <Check className="w-3 h-3 stroke-[3]" />
-            </div>
-            <span>SAFETY PROFILE MATCHED & SYNCHRONIZED</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Floating Mascot Widget */}
+      <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end pointer-events-none">
+        {/* Speech Bubble */}
+        <AnimatePresence>
+          {mascotBubbleVisible && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, y: 10, x: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 10, x: 10 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              className="bg-slate-900 border border-slate-800 text-white text-[11px] font-extrabold px-3.5 py-2 rounded-2xl rounded-br-none shadow-xl mb-2 max-w-[190px] pointer-events-auto relative"
+            >
+              <p className="leading-tight text-left">{mascotText}</p>
+              {/* Triangle pointer */}
+              <div className="absolute right-0 bottom-[-5px] w-2.5 h-2.5 bg-slate-900 border-r border-b border-slate-800 transform rotate-45" style={{ marginRight: '14px' }} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Elephant Mascot Avatar */}
+        <motion.div
+          variants={mascotAnimation}
+          animate={isMascotReacting ? "react" : "idle"}
+          className="w-15 h-15 rounded-full bg-gradient-to-tr from-slate-900 via-slate-950 to-indigo-950 border-2 border-white shadow-xl flex items-center justify-center cursor-pointer pointer-events-auto active:scale-95 transition-shadow hover:shadow-[0_0_15px_rgba(99,102,241,0.3)]"
+          onClick={() => {
+            setIsMascotReacting(true);
+            setTimeout(() => setIsMascotReacting(false), 800);
+            setMascotText("At your service! 🐘");
+            if (window.navigator?.vibrate) {
+              window.navigator.vibrate([40, 20]);
+            }
+          }}
+        >
+          {/* Specular gloss element */}
+          <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/20 via-transparent to-black/30 pointer-events-none mix-blend-overlay" />
+          <div className="absolute top-0.5 left-2 right-2 h-[35%] rounded-t-full bg-gradient-to-b from-white/35 via-white/5 to-transparent pointer-events-none filter blur-[0.5px]" />
+          
+          <span className="text-3xl select-none filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)]">
+            🐘
+          </span>
+        </motion.div>
+      </div>
     </div>
   );
 }
