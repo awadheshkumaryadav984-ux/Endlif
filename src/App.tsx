@@ -12,7 +12,6 @@ import SosView from './components/SosView';
 import AccountView from './components/AccountView';
 import CreatorHubView from './components/CreatorHubView';
 import ThreeDAvatar, { AvatarConfig } from './components/ThreeDAvatar';
-import VaultGate from './components/VaultGate';
 import PlexusBackground from './components/PlexusBackground';
 import { SecureStorage } from './utils/security';
 
@@ -22,7 +21,6 @@ export default function App() {
   const [lastCheckInTime, setLastCheckInTime] = useState<string>('04:32 PM');
   const [countdownMinutes, setCountdownMinutes] = useState<number>(23 * 60 + 12);
 
-  const [isLocked, setIsLocked] = useState<boolean>(() => localStorage.getItem('endlif_pin_lock_enabled') === 'true');
   const [decoyModeActive, setDecoyModeActive] = useState<boolean>(() => localStorage.getItem('endlif_decoy_active') === 'true');
 
   const [profile, setProfile] = useState({ name: 'Adele Vance', gender: 'Female' });
@@ -38,8 +36,8 @@ export default function App() {
   useEffect(() => {
     if (decoyModeActive) {
       setContacts([
-        { id: 'decoy1', name: 'Papa Pizza Delivery Hub', relationship: 'Commercial Vendor', phoneNumber: '+1 (555) 018-3561', icon: 'phone', highRiskSms: false },
-        { id: 'decoy2', name: 'Supervisor (Main Desk)', relationship: 'Professional Office', phoneNumber: '+1 (555) 012-9442', icon: 'zap', highRiskSms: false }
+        { id: 'decoy1', name: 'Papa Pizza Delivery Hub', role: 'Commercial Vendor', status: 'Active', avatar: '', online: true, phone: '+1 (555) 018-3561' },
+        { id: 'decoy2', name: 'Supervisor (Main Desk)', role: 'Professional Office', status: 'Active', avatar: '', online: true, phone: '+1 (555) 012-9442' }
       ]);
     } else {
       const savedContacts = SecureStorage.getItem('endlif_contacts');
@@ -140,7 +138,7 @@ export default function App() {
       case 'account':
         return 'Safety Profile';
       case 'creator_hub':
-        return 'Creator Hub';
+        return 'Guardian Hub';
       default:
         return 'Endlif';
     }
@@ -175,7 +173,11 @@ export default function App() {
         );
       case 'assistant':
         return (
-          <AssistantView />
+          <AssistantView 
+            setScreen={setScreen} 
+            onSosTrigger={triggerSos} 
+            contacts={contacts} 
+          />
         );
       case 'account':
         return (
@@ -199,12 +201,7 @@ export default function App() {
     }
   };
 
-  const handleVaultUnlock = (isDecoy: boolean) => {
-    setIsLocked(false);
-    setDecoyModeActive(isDecoy);
-  };
-
-  const isDarkBackgroundScreen = ['resources'].includes(screen);
+  const isDarkBackgroundScreen = ['resources', 'creator_hub'].includes(screen);
 
   return (
     <div className={`min-h-screen flex flex-col font-sans select-none overflow-x-hidden transition-all duration-500 relative ${
@@ -222,19 +219,6 @@ export default function App() {
             className="absolute inset-0 z-0 pointer-events-none"
           >
             <PlexusBackground />
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
-      <AnimatePresence>
-        {isLocked && (
-          <motion.div
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -40 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="fixed inset-0 z-[9999]"
-          >
-            <VaultGate onUnlock={handleVaultUnlock} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -280,19 +264,6 @@ export default function App() {
           )}
         </AnimatePresence>
       </main>
-
-      {/* Universal Interactive Active Background Safety Companion Mascot */}
-      {screen !== 'sos' && screen !== 'account' && (
-        <div className="fixed bottom-24 right-4 md:right-[calc(50%-280px)] z-40 pointer-events-auto select-none">
-          <div className="flex flex-col items-center select-none">
-            {/* Soft glowing beacon label above the companion */}
-            <span className="text-[8px] font-black font-mono bg-slate-900/95 text-indigo-400 px-2 py-0.5 rounded-full border border-slate-800 shadow-md uppercase tracking-wider scale-85 animate-pulse mb-0.5 select-none">
-              Companion: {avatar.character}
-            </span>
-            <ThreeDAvatar config={avatar} size="md" interactive={true} />
-          </div>
-        </div>
-      )}
 
       {/* Bottom navigation bar */}
       <BottomNav activeScreen={screen} setScreen={setScreen} />

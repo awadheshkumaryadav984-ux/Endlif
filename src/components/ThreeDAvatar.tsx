@@ -278,7 +278,7 @@ export default function ThreeDAvatar({
 
       {/* Volumetric 3D Interactive Mascot Container */}
       <motion.div
-        animate={getMotionAnimation()}
+        animate={getMotionAnimation() as any}
         onClick={handleAvatarClick}
         style={{ transformStyle: 'preserve-3d' }}
         className={`relative rounded-full bg-gradient-to-tr ${themeObj.from} flex items-center justify-center border-2 border-white/90 cursor-pointer select-none shadow-2xl transition-all duration-300 group ${themeObj.shadow} ${sizeClasses[size]}`}

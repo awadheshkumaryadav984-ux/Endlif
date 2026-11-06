@@ -61,12 +61,12 @@ export default function Header({
             {profileName}
           </span>
           {avatar ? (
-            <div className="w-10 h-10 flex items-center justify-center -mr-2">
+            <div className="w-9 h-9 flex items-center justify-center rounded-full overflow-hidden border border-indigo-500/30 transition-transform group-hover:scale-105 active:scale-95 bg-slate-900/60">
               <ThreeDAvatar config={avatar} size="sm" interactive={false} />
             </div>
           ) : (
             <div 
-              className={`w-9 h-9 rounded-full border-2 flex items-center justify-center text-[10px] font-black cursor-pointer transition-all hover:scale-105 active:scale-95 uppercase tracking-tighter ${isDark ? 'border-indigo-500/50 hover:border-indigo-400 bg-indigo-750 text-white' : 'border-indigo-100 hover:border-indigo-500 bg-indigo-600 text-white'}`}
+              className={`w-9 h-9 rounded-full border-2 flex items-center justify-center text-[10px] font-black cursor-pointer transition-all hover:scale-105 active:scale-95 uppercase tracking-tighter ${isDark ? 'border-indigo-500/50 hover:border-indigo-400 bg-indigo-950 text-white' : 'border-indigo-100 hover:border-indigo-500 bg-indigo-600 text-white'}`}
             >
               {getInitials(profileName)}
             </div>

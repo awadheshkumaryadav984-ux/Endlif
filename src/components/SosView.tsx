@@ -8,11 +8,15 @@ import {
   X, 
   Phone, 
   Volume2, 
+  VolumeX,
   Activity, 
   HeartPulse, 
   Globe, 
   Terminal,
-  ArrowRight
+  ArrowRight,
+  BrainCircuit,
+  Zap,
+  Shield
 } from 'lucide-react';
 import { Contact } from '../types';
 
@@ -38,6 +42,21 @@ export default function SosView({ onCancelSos, contacts = [] }: SosViewProps) {
 
   // Soundwave mock state for futuristic animation
   const [pulseBeats, setPulseBeats] = useState<number[]>([12, 18, 8, 24, 15, 6, 20]);
+  const [isAchyutaMuted, setIsAchyutaMuted] = useState(false);
+
+  useEffect(() => {
+    // Speak calming tactical directive upon emergency SOS trigger
+    if (window.speechSynthesis && !isAchyutaMuted) {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance("Emergency SOS active. Keep your phone firmly in hand. Your safety circle and emergency broadcast are active. Move swiftly toward well-lit public shelter.");
+      utter.rate = 1.0;
+      utter.pitch = 1.0;
+      window.speechSynthesis.speak(utter);
+    }
+    return () => {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+    };
+  }, [isAchyutaMuted]);
 
   useEffect(() => {
     const waveTicker = setInterval(() => {
@@ -237,6 +256,58 @@ export default function SosView({ onCancelSos, contacts = [] }: SosViewProps) {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Achyuta AI Emergency Tactical Guidance Card */}
+        <div className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-left space-y-2.5 relative overflow-hidden shadow-lg">
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-red-500 via-amber-500 to-indigo-500" />
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BrainCircuit className="w-4 h-4 text-indigo-400 animate-pulse" />
+              <span className="text-[11px] font-mono font-black text-white uppercase tracking-wider">
+                Achyuta Tactical Co-Pilot
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsAchyutaMuted(!isAchyutaMuted)}
+              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer flex items-center gap-1 text-[9px] font-mono"
+            >
+              {isAchyutaMuted ? (
+                <>
+                  <VolumeX className="w-3 h-3 text-rose-400" />
+                  <span>Unmute Voice</span>
+                </>
+              ) : (
+                <>
+                  <Volume2 className="w-3 h-3 text-emerald-400" />
+                  <span>Voice Active</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          <p className="text-xs text-slate-200 font-sans leading-relaxed">
+            🛡️ <strong>Immediate Tactical Priority:</strong> Move steadily toward populated commercial buildings or well-lit storefronts. Keep device in hand with emergency line open. Do not enter isolated spaces.
+          </p>
+
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <a
+              href="tel:112"
+              className="py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-mono font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-xs"
+            >
+              <Phone className="w-3 h-3" />
+              <span>Call Police (112)</span>
+            </a>
+            <a
+              href="tel:911"
+              className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all border border-slate-700"
+            >
+              <Phone className="w-3 h-3 text-indigo-400" />
+              <span>Alt Dispatch (911)</span>
+            </a>
+          </div>
         </div>
 
         {/* Contacts sequence dashboard selector (Where user can force select/trigger via Sim) */}

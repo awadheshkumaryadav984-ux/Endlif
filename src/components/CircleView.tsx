@@ -3,14 +3,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Phone, 
   MessageSquare, 
-  MapPin, 
-  AlertTriangle, 
   Plus, 
   Users, 
-  ShieldAlert, 
   X, 
   Sparkles, 
-  Compass, 
   Link2, 
   Share2, 
   Settings, 
@@ -18,15 +14,30 @@ import {
   ChevronLeft, 
   Radio, 
   Trash2,
-  AlertCircle,
   Volume2,
   MicOff,
   Video,
   Shield,
-  Activity
+  Send,
+  ExternalLink,
+  Bot,
+  Copy,
+  Check,
+  Mail,
+  Bell,
+  PhoneCall,
+  AlertTriangle,
+  Smartphone
 } from 'lucide-react';
 import { Contact } from '../types';
 import ThreeDAvatar from './ThreeDAvatar';
+import { SafetyCircleManager } from '../services/SafetyCircleManager';
+import { NotificationManager } from '../services/NotificationManager';
+import { SMSFallbackService } from '../services/SMSFallbackService';
+import { EmailFallbackService } from '../services/EmailFallbackService';
+import { FCMService } from '../services/FCMService';
+import { toE164, isValidE164, formatForDisplay } from '../services/phoneUtils';
+import { AlertAuditLogger } from '../services/AlertAuditLogger';
 
 interface CircleViewProps {
   contacts: Contact[];
@@ -48,6 +59,8 @@ export default function CircleView({
   const [newContactName, setNewContactName] = useState('');
   const [newContactRole, setNewContactRole] = useState('Primary Guardian');
   const [newContactPhone, setNewContactPhone] = useState('');
+  const [newContactEmail, setNewContactEmail] = useState('');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   
   // Interactive navigation / dropdowns
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -56,97 +69,36 @@ export default function CircleView({
   // Immersive safety action overlays
   const [activeCallContact, setActiveCallContact] = useState<Contact | null>(null);
   const [activeMsgContact, setActiveMsgContact] = useState<Contact | null>(null);
-  const [activeTrackContact, setActiveTrackContact] = useState<Contact | null>(null);
-  const [activeSosContact, setActiveSosContact] = useState<Contact | null>(null);
+  const [editablePhone, setEditablePhone] = useState('');
+  const [editableEmail, setEditableEmail] = useState('');
+  const [copiedMessage, setCopiedMessage] = useState(false);
+  const [channelActionStatus, setChannelActionStatus] = useState<{ [key: string]: string }>({});
   
-  // SMS Template states
-  const [presetSmsTemplate, setPresetSmsTemplate] = useState('My real-time security loop is active. Monitor my coordinates here: https://endlif.app/track/AV');
-  const [smsDeliveryStatus, setSmsDeliveryStatus] = useState<boolean>(false);
+  // Canonical Emergency Alert Template
+  const [presetAlertTemplate, setPresetAlertTemplate] = useState(
+    `ENDLIF Emergency Safety Alert: Daily check-in overdue for ${profileName}. Please verify their safety immediately. Track status: https://endlif.app/status`
+  );
+
+  // Sync contacts with SafetyCircleManager
+  useEffect(() => {
+    const handleCircleUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<{ contacts: Contact[] }>;
+      if (customEvent.detail?.contacts) {
+        setContacts(customEvent.detail.contacts);
+      } else {
+        setContacts(SafetyCircleManager.getContacts());
+      }
+    };
+
+    window.addEventListener('endlif_circle_updated', handleCircleUpdated);
+    return () => window.removeEventListener('endlif_circle_updated', handleCircleUpdated);
+  }, [setContacts]);
 
   // Smooth VoIP Call Simulator States
   const [callState, setCallState] = useState<'connecting' | 'ringing' | 'active' | 'disconnected'>('connecting');
   const [callDuration, setCallDuration] = useState<number>(0);
   const [isSpeakerOn, setIsSpeakerOn] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
-
-  // Active High-Decibel Siren States and Audio Synth Engine
-  const [isAlarmActive, setIsAlarmActive] = useState<boolean>(false);
-
-  useEffect(() => {
-    let audioCtx: AudioContext | null = null;
-    let osc1: OscillatorNode | null = null;
-    let osc2: OscillatorNode | null = null;
-    let gainNode: GainNode | null = null;
-    let synthInterval: number | null = null;
-
-    if (isAlarmActive) {
-      try {
-        const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioCtxClass) {
-          audioCtx = new AudioCtxClass();
-          gainNode = audioCtx.createGain();
-          gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime); // High volume
-
-          osc1 = audioCtx.createOscillator();
-          osc1.type = 'sawtooth'; // piercing wave
-          osc1.frequency.setValueAtTime(580, audioCtx.currentTime);
-
-          osc2 = audioCtx.createOscillator();
-          osc2.type = 'sine'; // high sweep wave
-          osc2.frequency.setValueAtTime(850, audioCtx.currentTime);
-
-          osc1.connect(gainNode);
-          osc2.connect(gainNode);
-          gainNode.connect(audioCtx.destination);
-
-          osc1.start();
-          osc2.start();
-
-          let count = 0;
-          synthInterval = window.setInterval(() => {
-            if (!audioCtx || !osc1 || !osc2) return;
-            const t = audioCtx.currentTime;
-            // Pulsing alarm wave sweep: between 500Hz and 1250Hz
-            const baseFreq = 620 + Math.sin(count * 0.45) * 380;
-            osc1.frequency.exponentialRampToValueAtTime(baseFreq, t + 0.12);
-            osc2.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, t + 0.12);
-            count++;
-
-            // Physical tactile buzz vibration loop
-            if (window.navigator?.vibrate) {
-              window.navigator.vibrate([180]);
-            }
-          }, 150);
-        }
-      } catch (err) {
-        console.warn('Real browser audio oscillator setup blocked by sandbox policy or unsupported:', err);
-      }
-    }
-
-    return () => {
-      if (synthInterval) {
-        clearInterval(synthInterval);
-      }
-      try {
-        if (osc1) { osc1.stop(); osc1.disconnect(); }
-        if (osc2) { osc2.stop(); osc2.disconnect(); }
-        if (gainNode) { gainNode.disconnect(); }
-        if (audioCtx && audioCtx.state !== 'closed') { audioCtx.close(); }
-      } catch (e) {
-        console.warn('Audio cleaning warning:', e);
-      }
-    };
-  }, [isAlarmActive]);
-
-  // Simulated live GPS coordinates matching the requested mockups
-  const getContactLocation = (name: string): { location: string; updated?: string; latOff: number; lngOff: number } => {
-    const n = name.toLowerCase();
-    if (n.includes('father')) return { location: 'Home', updated: '30 sec ago', latOff: 0.002, lngOff: -0.003 };
-    if (n.includes('mother')) return { location: 'Office', updated: 'Live', latOff: -0.004, lngOff: 0.006 };
-    if (n.includes('brother')) return { location: 'Travelling', updated: 'Just now', latOff: 0.009, lngOff: 0.012 };
-    if (n.includes('friend')) return { location: 'University', updated: '1 min ago', latOff: -0.001, lngOff: -0.008 };
-    return { location: 'Nearby Shared GPS', updated: 'Live', latOff: 0.001, lngOff: 0.002 };
-  };
 
   // VoIP call progress simulation effect
   useEffect(() => {
@@ -200,23 +152,36 @@ export default function CircleView({
     e.preventDefault();
     if (!newContactName.trim()) return;
 
-    // Use specific placeholders for safe avatar fallback rendering
+    const rawPhone = newContactPhone.trim();
+    const formattedPhone = toE164(rawPhone);
+
+    if (!isValidE164(formattedPhone)) {
+      setPhoneError('Please provide a valid E.164 phone number (e.g. +14155552671)');
+      return;
+    }
+
+    setPhoneError(null);
+
     const newContact: Contact = {
       id: `guardian_${Date.now()}`,
-      name: newContactName,
+      name: newContactName.trim(),
       role: newContactRole,
       status: 'Active',
       avatar: `https://lh3.googleusercontent.com/aida-public/AB6AXuAj9awLdHeoyRWhpmJ_G_9iEymBJIcMPqIXy66-tiksDTcwVcy8p_M6uySonXEmqlwnhOlRTGXLqHC9rHiRojZT-ojhHZZGwJbBaeaQob1KWy_sutgEsQm7A-PrfVYVT3DsZwL-ZvLXA5PJasMpUFsqhEHbmNBXbOewH8R4xh-i5KNIokS9OamLNXAydPYfn3YQBTJ64afZO2pIxoP1b3DVOm7NSqq6PS_K6-Yr4dU_oWHNeQDGWmSxp1Bn9WetsBAq36NnTqTj6OU`,
       online: true,
-      phone: newContactPhone.trim() || '+1 (555) 012-3456',
+      phone: formattedPhone,
+      email: newContactEmail.trim() || undefined,
+      fcmToken: `fcm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
     };
 
-    setContacts((prev) => [...prev, newContact]);
+    SafetyCircleManager.addContact(newContact);
+    setContacts(SafetyCircleManager.getContacts());
     setNewContactName('');
     setNewContactPhone('');
+    setNewContactEmail('');
     setNewContactRole('Primary Guardian');
     setShowAddModal(false);
-    triggerNotification('✦ Guardian loop integrated with AES-GCM handshake!');
+    triggerNotification(`✦ Guardian ${newContact.name} enrolled in Safety Circle with E.164 verified phone!`);
   };
 
   const triggerNotification = (text: string) => {
@@ -228,17 +193,18 @@ export default function CircleView({
 
   const handleQuickAction = (actionType: 'invite' | 'share' | 'permissions') => {
     if (actionType === 'invite') {
-      triggerNotification('🔗 Direct invite link generated & copied to clipboard');
+      triggerNotification('🔗 Direct guardian safety invite link generated & copied');
     } else if (actionType === 'share') {
-      triggerNotification('📍 Continuous live location link shared on safety channel');
+      triggerNotification('📍 Continuous live safety link shared on guardian channel');
     } else if (actionType === 'permissions') {
-      triggerNotification('⚙ Guardian background tracking permission verified with platform keychain.');
+      triggerNotification('⚙ Guardian background alert permissions verified.');
     }
   };
 
   const handleRemoveContact = (id: string, name: string) => {
-    setContacts(prev => prev.filter(c => c.id !== id));
-    triggerNotification(`Guardian ${name} detached from your active circle.`);
+    SafetyCircleManager.removeContact(id);
+    setContacts(SafetyCircleManager.getContacts());
+    triggerNotification(`Guardian ${name} removed from your active Safety Circle.`);
     setActiveMenuId(null);
   };
 
@@ -247,43 +213,88 @@ export default function CircleView({
     if (window.navigator?.vibrate) {
       window.navigator.vibrate([40, 30, 40]);
     }
-    // Trigger real outbound cellular call via standard device gateway protocol
-    try {
-      const cleanPhone = (contact.phone || '').replace(/[^\d+]/g, '');
-      if (cleanPhone) {
-        window.location.href = `tel:${cleanPhone}`;
-      } else {
-        window.location.href = `tel:+15550123499`; // Safe fallback
-      }
-    } catch (err) {
-      console.error('Direct dial protocol failed:', err);
-    }
+    NotificationManager.initiateEmergencyCall(contact);
   };
 
-  const executeSms = (contact: Contact) => {
+  const openEmergencyChannelsModal = (contact: Contact) => {
     setActiveMsgContact(contact);
-    setSmsDeliveryStatus(false);
+    setEditablePhone(contact.phone || '+15550123499');
+    setEditableEmail(contact.email || '');
+    setCopiedMessage(false);
+    setChannelActionStatus({});
   };
 
-  const sendSmsSim = () => {
-    setSmsDeliveryStatus(true);
-    if (window.navigator?.vibrate) {
-      window.navigator.vibrate([15, 10, 15]);
+  const handleSendFCM = async () => {
+    if (!activeMsgContact) return;
+    setChannelActionStatus(prev => ({ ...prev, fcm: 'Sending FCM push notification...' }));
+    const result = await FCMService.sendNotification({
+      token: activeMsgContact.fcmToken || 'token-sim',
+      title: '🚨 ENDLIF Emergency Safety Alert',
+      body: presetAlertTemplate,
+      data: {
+        type: 'DAILY_CHECKIN_EXPIRED',
+        contactId: activeMsgContact.id,
+        userName: profileName
+      }
+    });
+
+    if (result.success) {
+      setChannelActionStatus(prev => ({
+        ...prev,
+        fcm: result.isSimulation ? 'Sent (Development Push Simulation)' : 'Delivered to ENDLIF App'
+      }));
+      triggerNotification(`FCM push dispatched to ${activeMsgContact.name}`);
+    } else {
+      setChannelActionStatus(prev => ({ ...prev, fcm: `Failed: ${result.error}` }));
     }
-    setTimeout(() => {
-      setActiveMsgContact(null);
-      triggerNotification(`💬 Secure satellite SMS routed to ${activeMsgContact?.name}`);
-    }, 1200);
   };
 
-  const executeTrack = (contact: Contact) => {
-    setActiveTrackContact(contact);
+  const handleSendSmsFallback = async () => {
+    if (!activeMsgContact) return;
+    setChannelActionStatus(prev => ({ ...prev, sms: 'Opening native device SMS...' }));
+    const updatedContact = { ...activeMsgContact, phone: toE164(editablePhone) || activeMsgContact.phone };
+    SMSFallbackService.triggerDeviceSms(updatedContact, presetAlertTemplate);
+    setChannelActionStatus(prev => ({ ...prev, sms: 'Device SMS client triggered' }));
+    triggerNotification(`Device SMS intent launched for ${activeMsgContact.name}`);
   };
 
-  const executeSosAlert = (contact: Contact) => {
-    setActiveSosContact(contact);
-    if (window.navigator?.vibrate) {
-      window.navigator.vibrate([100, 40, 100, 40, 400]);
+  const handleSendEmailFallback = async () => {
+    if (!activeMsgContact) return;
+    const emailToUse = editableEmail.trim() || activeMsgContact.email;
+    if (!emailToUse) {
+      setChannelActionStatus(prev => ({ ...prev, email: 'Please specify an email address first' }));
+      return;
+    }
+
+    setChannelActionStatus(prev => ({ ...prev, email: 'Dispatching email alert...' }));
+    const updatedContact = { ...activeMsgContact, email: emailToUse };
+    const result = await EmailFallbackService.sendEmail(
+      updatedContact,
+      `🚨 URGENT: ENDLIF Safety Alert for ${profileName}`,
+      presetAlertTemplate
+    );
+
+    if (result.success) {
+      setChannelActionStatus(prev => ({
+        ...prev,
+        email: result.isSimulation ? 'Sent (Simulation Inbox Logged)' : 'Email delivered'
+      }));
+      triggerNotification(`Email alert dispatched to ${emailToUse}`);
+    } else {
+      setChannelActionStatus(prev => ({ ...prev, email: `Email Error: ${result.error}` }));
+    }
+  };
+
+  const handleCopyAlertMessage = () => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(presetAlertTemplate);
+      }
+      setCopiedMessage(true);
+      triggerNotification('📋 Emergency safety alert text copied to clipboard!');
+      setTimeout(() => setCopiedMessage(false), 2500);
+    } catch (err) {
+      console.error('Clipboard copy error:', err);
     }
   };
 
@@ -414,7 +425,6 @@ export default function CircleView({
 
           <div className="space-y-3">
             {contacts.map((contact) => {
-              const locInfo = getContactLocation(contact.name);
               const isMenuOpen = activeMenuId === contact.id;
 
               return (
@@ -458,17 +468,6 @@ export default function CircleView({
                         <span className="text-slate-300">•</span>
                         <span className="font-mono text-[11px] text-slate-400">{contact.phone || '+1 (555) 012-3499'}</span>
                       </div>
-
-                      {/* GPS coordinates & status indicators */}
-                      <div className="flex items-center gap-1 text-xs font-semibold text-slate-500 pt-1">
-                        <MapPin className="w-3.5 h-3.5 text-rose-500 fill-rose-50 flex-shrink-0" />
-                        <span className="text-slate-600 font-bold">
-                          {locInfo.location}
-                        </span>
-                        {locInfo.updated && (
-                          <span className="text-slate-400 font-medium"> · Updated {locInfo.updated}</span>
-                        )}
-                      </div>
                     </div>
                   </div>
 
@@ -477,30 +476,16 @@ export default function CircleView({
                     <button
                       onClick={() => executeCall(contact)}
                       className="w-10 h-10 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 transition-all flex items-center justify-center cursor-pointer shadow-sm active:scale-90"
-                      title="📞 Secure Phone Call"
+                      title="📞 Cellular Emergency Call"
                     >
                       <Phone className="w-4 h-4 fill-emerald-600" />
                     </button>
                     <button
-                      onClick={() => executeSms(contact)}
-                      className="w-10 h-10 rounded-full bg-[#5B4BFF]/5 hover:bg-[#5B4BFF]/10 text-[#5B4BFF] transition-all flex items-center justify-center cursor-pointer shadow-sm active:scale-90"
-                      title="💬 Encrypted Safety SMS"
+                      onClick={() => openEmergencyChannelsModal(contact)}
+                      className="w-10 h-10 rounded-full bg-indigo-50 hover:bg-indigo-100 text-[#5B4BFF] border border-indigo-100 transition-all flex items-center justify-center cursor-pointer shadow-sm active:scale-90"
+                      title="🚨 Multi-Channel Safety Dispatch"
                     >
-                      <MessageSquare className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => executeTrack(contact)}
-                      className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all flex items-center justify-center cursor-pointer shadow-sm active:scale-90"
-                      title="📍 Live Map Track"
-                    >
-                      <Compass className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => executeSosAlert(contact)}
-                      className="w-10 h-10 rounded-full bg-rose-50 hover:bg-rose-100/80 text-rose-600 transition-all flex items-center justify-center cursor-pointer shadow-sm active:scale-90"
-                      title="🚨 Panic Alarm Override"
-                    >
-                      <AlertTriangle className="w-4 h-4 fill-rose-600" />
+                      <Bell className="w-4 h-4 text-[#5B4BFF]" />
                     </button>
 
                     {/* Options */}
@@ -645,7 +630,7 @@ export default function CircleView({
           {/* Orb core */}
           <div className="relative w-15 h-15 rounded-full bg-gradient-to-tr from-[#5B4BFF] to-indigo-900 border border-white/20 flex items-center justify-center text-white overflow-hidden shadow-md group-hover:scale-105 active:scale-95 transition-all">
             <Radio className="w-5 h-5 text-white stroke-[2.5] absolute animate-[ping_3s_infinite_ease-in-out]" />
-            <Compass className="w-6 h-6 text-white stroke-[2.2] animate-[spin_16s_linear_infinite]" />
+            <Bot className="w-6 h-6 text-white stroke-[2.2] animate-pulse" />
             <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity backdrop-brightness-125" />
           </div>
 
@@ -779,7 +764,7 @@ export default function CircleView({
         )}
       </AnimatePresence>
 
-      {/* B. SMS ALERT MODAL */}
+      {/* B. MULTI-CHANNEL EMERGENCY DISPATCH & FALLBACK CONSOLE */}
       <AnimatePresence>
         {activeMsgContact && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
@@ -787,223 +772,176 @@ export default function CircleView({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[24px] border border-slate-200 p-6 max-w-sm w-full shadow-2xl text-left space-y-5"
+              className="bg-white rounded-[24px] border border-slate-200 p-6 max-w-md w-full shadow-2xl text-left space-y-4 max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-[#5B4BFF]/10 flex items-center justify-center text-[#5B4BFF]">
-                    <MessageSquare className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-[#5B4BFF]">
+                    <Shield className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="font-extrabold text-slate-900 text-[15px]">Encrypted Message</h4>
-                    <p className="text-[10px] text-slate-400 font-mono">Recipient: {activeMsgContact.name}</p>
+                    <h4 className="font-extrabold text-slate-900 text-[15px] leading-tight">Safety Alert & Fallback Console</h4>
+                    <p className="text-[10.5px] text-slate-500 font-mono">Guardian: {activeMsgContact.name} ({activeMsgContact.role})</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setActiveMsgContact(null)}
-                  className="text-slate-400 hover:text-slate-600"
+                  className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                  title="Close modal"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Panic SMS Template</label>
-                <textarea
-                  value={presetSmsTemplate}
-                  onChange={(e) => setPresetSmsTemplate(e.target.value)}
-                  className="w-full h-24 p-3 bg-slate-50 border border-slate-200 font-sans focus:border-[#5B4BFF] rounded-xl text-xs font-semibold text-slate-700 outline-none resize-none transition-colors"
-                />
-              </div>
-
-              <div className="space-y-2.5">
-                <button
-                  type="button"
-                  onClick={sendSmsSim}
-                  disabled={smsDeliveryStatus}
-                  className="w-full bg-[#5B4BFF] hover:bg-[#4C3EE0] text-white py-3.5 rounded-xl text-xs font-black transition-all active:scale-95 shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  {smsDeliveryStatus ? 'Broadcasting Protocol...' : 'Send Safety Network Alert'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPresetSmsTemplate('SOS state initialized! Immediate tracking requested at: https://endlif.app/track/AV')}
-                  className="w-full border border-slate-200 hover:bg-rose-50 text-rose-600 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-wide transition-all"
-                >
-                  ⚠️ Swap for SOS Coordinates URL
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* C. LIVE MAP TRACK MODAL */}
-      <AnimatePresence>
-        {activeTrackContact && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[24px] border border-slate-200 p-6 max-w-sm w-full shadow-2xl text-left space-y-4"
-            >
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                    <Compass className="w-5 h-5 animate-spin" />
-                  </div>
-                  <div>
-                    <h4 className="font-extrabold text-slate-900 text-[15px]">Live Location Tracker</h4>
-                    <p className="text-[10px] text-emerald-600 font-extrabold uppercase tracking-widest flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping inline-block" /> Verified GPS stream
-                    </p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setActiveTrackContact(null)}
-                  className="text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Dynamic device grid simulator */}
-              <div className="bg-slate-950 rounded-[20px] h-48 relative overflow-hidden flex flex-col justify-between p-4 border border-slate-800">
-                <div className="absolute inset-0 opacity-10 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:16px_16px]" />
-                
-                {/* Simulated circle coordinates */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-24 h-24 bg-[#5B4BFF]/20 rounded-full animate-ping flex items-center justify-center" />
-                  <div className="absolute w-2.5 h-2.5 rounded-full bg-[#5B4BFF] shadow-lg animate-pulse" />
-                  <div className="absolute text-[9px] bg-slate-900/95 text-slate-100 rounded-lg px-2 py-0.5 mt-10 font-bold font-mono border border-slate-800">
-                    📍 {activeTrackContact.name} is here
-                  </div>
+              {/* Recipient Coordinates */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
+                <div className="space-y-1">
+                  <label className="text-[9.5px] font-black text-slate-400 uppercase tracking-widest block font-mono">
+                    Phone (E.164)
+                  </label>
+                  <input
+                    type="tel"
+                    value={editablePhone}
+                    onChange={(e) => setEditablePhone(e.target.value)}
+                    placeholder="+14155552671"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 font-mono focus:border-[#5B4BFF] rounded-xl text-xs font-bold text-slate-800 outline-none transition-colors"
+                  />
+                  <p className="text-[8.5px] text-slate-400 font-mono">
+                    {isValidE164(toE164(editablePhone)) ? '✓ Valid E.164' : '⚠️ Format: +[country][number]'}
+                  </p>
                 </div>
 
-                <div className="z-10 flex justify-between items-start">
-                  <span className="text-[8px] text-slate-400 font-mono">GPS Precision: ±1.2m</span>
-                  <span className="text-[8px] bg-emerald-900/40 text-emerald-400 border border-emerald-500/10 rounded px-1.5 py-0.5 font-mono uppercase font-black">SIGNAL: ACTIVE</span>
-                </div>
-
-                <div className="z-10 text-left space-y-0.5">
-                  <span className="text-[11px] font-black text-white">{activeTrackContact.name}</span>
-                  <p className="text-[9px] text-slate-400">
-                    Last update: 32 seconds ago (GPS handshake OK)
+                <div className="space-y-1">
+                  <label className="text-[9.5px] font-black text-slate-400 uppercase tracking-widest block font-mono">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={editableEmail}
+                    onChange={(e) => setEditableEmail(e.target.value)}
+                    placeholder="guardian@example.com"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 font-mono focus:border-[#5B4BFF] rounded-xl text-xs font-bold text-slate-800 outline-none transition-colors"
+                  />
+                  <p className="text-[8.5px] text-slate-400 font-mono">
+                    For Universal Email Fallback
                   </p>
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center gap-3">
-                <MapPin className="w-5 h-5 text-rose-500" />
-                <div className="text-left text-xs leading-snug">
-                  <span className="font-bold block text-slate-800">Assigned Geozone Status</span>
-                  <span className="text-slate-500 font-bold">{getContactLocation(activeTrackContact.name).location} geofence active</span>
+              {/* Canonical Safety Message */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-[9.5px] font-black text-slate-400 uppercase tracking-widest block font-mono">
+                    Emergency Alert Message
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleCopyAlertMessage}
+                    className="text-[9.5px] text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    {copiedMessage ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedMessage ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+                <textarea
+                  value={presetAlertTemplate}
+                  onChange={(e) => setPresetAlertTemplate(e.target.value)}
+                  className="w-full h-20 p-2.5 bg-slate-50 border border-slate-200 font-mono focus:border-[#5B4BFF] rounded-xl text-xs font-semibold text-slate-700 outline-none resize-none transition-colors leading-relaxed"
+                />
+              </div>
+
+              {/* Multi-Channel Execution Buttons */}
+              <div className="space-y-2 pt-1">
+                <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-widest block font-mono">
+                  Dispatch Via Individual Channels
+                </span>
+
+                {/* Primary: FCM */}
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                      <Smartphone className="w-4 h-4 text-emerald-600" />
+                      <span>1. Primary: ENDLIF In-App (FCM Push)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSendFCM}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer shadow-xs"
+                    >
+                      Trigger Push
+                    </button>
+                  </div>
+                  {channelActionStatus.fcm && (
+                    <p className="text-[9.5px] font-mono text-emerald-700 bg-emerald-50 p-1.5 rounded border border-emerald-200">
+                      {channelActionStatus.fcm}
+                    </p>
+                  )}
+                </div>
+
+                {/* Fallback 1: Device SMS */}
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                      <MessageSquare className="w-4 h-4 text-sky-600" />
+                      <span>2. Fallback: Device SMS Client</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSendSmsFallback}
+                      className="bg-sky-600 hover:bg-sky-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer shadow-xs"
+                    >
+                      Open SMS
+                    </button>
+                  </div>
+                  {channelActionStatus.sms && (
+                    <p className="text-[9.5px] font-mono text-sky-700 bg-sky-50 p-1.5 rounded border border-sky-200">
+                      {channelActionStatus.sms}
+                    </p>
+                  )}
+                </div>
+
+                {/* Fallback 2: Universal Email */}
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                      <Mail className="w-4 h-4 text-indigo-600" />
+                      <span>3. Fallback: Universal Email</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSendEmailFallback}
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer shadow-xs"
+                    >
+                      Send Email
+                    </button>
+                  </div>
+                  {channelActionStatus.email && (
+                    <p className="text-[9.5px] font-mono text-indigo-700 bg-indigo-50 p-1.5 rounded border border-indigo-200">
+                      {channelActionStatus.email}
+                    </p>
+                  )}
+                </div>
+
+                {/* Fallback 3: Cellular Call */}
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                    <PhoneCall className="w-4 h-4 text-rose-600" />
+                    <span>4. Fallback: Cellular Call Prompt</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (activeMsgContact) {
+                        NotificationManager.initiateEmergencyCall(activeMsgContact);
+                      }
+                    }}
+                    className="bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer shadow-xs"
+                  >
+                    Dial Now
+                  </button>
                 </div>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setActiveTrackContact(null)}
-                className="w-full bg-[#5B4BFF] hover:bg-[#4C3EE0] text-white py-3.5 rounded-xl text-xs font-black transition-all active:scale-95 cursor-pointer"
-              >
-                Close Tracking Console
-              </button>
             </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* D. SOS OVERRIDE MODAL */}
-      <AnimatePresence>
-        {activeSosContact && (
-          <div className="fixed inset-0 bg-red-950/95 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-[24px] border border-red-100 p-6 max-w-sm w-full shadow-2xl text-center space-y-5"
-            >
-              <div className="w-16 h-16 bg-red-50 text-rose-600 rounded-full flex items-center justify-center mx-auto animate-pulse">
-                <ShieldAlert className="w-9 h-9 text-rose-600" />
-              </div>
-
-              <div className="space-y-1.5">
-                <h3 className="text-xl font-black text-rose-600">Activate Override Protocol</h3>
-                <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed font-bold">
-                  This will broadcast an overriding high-decibel auditory SOS alert to <span className="font-extrabold text-slate-800">{activeSosContact.name}</span>'s device.
-                </p>
-              </div>
-
-              <div className="bg-rose-50 border border-rose-100 p-3.5 rounded-xl text-[10px] font-bold text-rose-700 leading-snug flex items-start gap-2.5 text-left">
-                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
-                <span>The override ignores their device silent/DND settings and immediately prompts the receiver with security stream telemetry.</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setActiveSosContact(null)}
-                  className="w-full py-3.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-550 hover:bg-slate-50 transition-colors"
-                >
-                  Cancel Protocol
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveSosContact(null);
-                    setIsAlarmActive(true);
-                    triggerNotification(`🚨 Satellite override alarm activated for ${activeSosContact.name}!`);
-                  }}
-                  className="w-full bg-rose-600 hover:bg-rose-500 text-white py-3.5 rounded-xl text-xs font-black transition-all active:scale-95 shadow-md"
-                >
-                  CONFIRM ALARM
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* EMERGENCY HIGHSIGNAL ALARM CONTROL DE-ESCALATE SYSTEM */}
-      <AnimatePresence>
-        {isAlarmActive && (
-          <div className="fixed inset-0 bg-rose-700/95 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-6 text-white text-center select-none overflow-hidden font-sans">
-            <div className="absolute inset-0 bg-red-800 opacity-20 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.25),transparent)] animate-pulse" />
-            
-            {/* Pulsing hazard rings */}
-            <div className="relative w-48 h-48 mx-auto mb-8 flex items-center justify-center">
-              <span className="absolute inset-0 bg-white/20 rounded-full animate-ping" />
-              <span className="absolute inset-4 bg-rose-500/30 rounded-full animate-[ping_2s_infinite]" />
-              <div className="relative z-10 w-32 h-32 bg-white rounded-full flex items-center justify-center text-rose-600 shadow-2xl">
-                <ShieldAlert className="w-16 h-16 animate-bounce text-rose-600" />
-              </div>
-            </div>
-
-            <div className="space-y-3 max-w-sm mx-auto mb-10 z-10">
-              <h2 className="text-3xl font-black uppercase tracking-tight text-white animate-pulse">
-                PANIC OVERRIDE ACTIVE
-              </h2>
-              <p className="text-sm text-rose-100 font-bold leading-relaxed">
-                A high-decibel emergency siren is currently sounding on your device. Simultaneously, an emergency override protocol has been sent to your guardian's device on standard telephonic frequencies.
-              </p>
-              <div className="text-xs bg-rose-900/60 border border-white/10 px-4 py-2.5 rounded-xl inline-block mt-2 font-mono">
-                🛰 GPS Coordinates & Telemetry Loop Active
-              </div>
-            </div>
-
-            <div className="w-full max-w-xs space-y-3 z-10">
-              <button
-                onClick={() => setIsAlarmActive(false)}
-                className="w-full bg-white text-rose-600 hover:bg-rose-50 py-4.5 rounded-2xl text-sm font-black uppercase tracking-wider shadow-lg active:scale-95 transition-all cursor-pointer"
-              >
-                🛑 Silence Panic Siren
-              </button>
-            </div>
-            
-            <div className="mt-8 text-[10px] text-rose-200 uppercase font-bold tracking-widest flex items-center gap-1">
-              <Activity className="w-3.5 h-3.5 animate-pulse" /> Real-time soundwave vibration bound
-            </div>
           </div>
         )}
       </AnimatePresence>
@@ -1023,8 +961,11 @@ export default function CircleView({
                   <Users className="w-5 h-5 text-[#5B4BFF]" /> Add Guardian
                 </h3>
                 <button 
-                  onClick={() => setShowAddModal(false)}
-                  className="text-slate-400 hover:text-slate-600"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setPhoneError(null);
+                  }}
+                  className="text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1036,7 +977,7 @@ export default function CircleView({
                   <input 
                     type="text" 
                     required
-                    placeholder="e.g. Sister, Roommate"
+                    placeholder="e.g. Maya Lin, Emergency Contact"
                     value={newContactName}
                     onChange={(e) => setNewContactName(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 focus:border-[#5B4BFF] focus:bg-white rounded-xl px-4 py-3 outline-none text-slate-800 transition-colors text-xs font-bold"
@@ -1044,13 +985,36 @@ export default function CircleView({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Phone Number</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                    Phone Number (E.164 Format)
+                  </label>
                   <input 
                     type="tel" 
                     required
-                    placeholder="e.g. +1 (555) 012-4455"
+                    placeholder="e.g. +14155552671 or +447911123456"
                     value={newContactPhone}
-                    onChange={(e) => setNewContactPhone(e.target.value)}
+                    onChange={(e) => {
+                      setNewContactPhone(e.target.value);
+                      if (phoneError) setPhoneError(null);
+                    }}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-[#5B4BFF] focus:bg-white rounded-xl px-4 py-3 outline-none text-slate-800 transition-colors font-mono text-xs font-bold"
+                  />
+                  {phoneError ? (
+                    <p className="text-[10px] text-rose-600 font-bold mt-1 font-mono">{phoneError}</p>
+                  ) : (
+                    <p className="text-[9px] text-slate-400 font-mono mt-1">Include country code starting with +</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                    Email Address (Optional for Email Fallback)
+                  </label>
+                  <input 
+                    type="email" 
+                    placeholder="guardian@family.org"
+                    value={newContactEmail}
+                    onChange={(e) => setNewContactEmail(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 focus:border-[#5B4BFF] focus:bg-white rounded-xl px-4 py-3 outline-none text-slate-800 transition-colors font-mono text-xs font-bold"
                   />
                 </div>
@@ -1072,9 +1036,9 @@ export default function CircleView({
 
                 <button 
                   type="submit"
-                  className="w-full py-3.5 bg-[#5B4BFF] text-white font-black rounded-xl hover:bg-[#4C3EE0] active:scale-95 transition-all outline-none cursor-pointer text-xs uppercase tracking-wider"
+                  className="w-full py-3.5 bg-[#5B4BFF] text-white font-black rounded-xl hover:bg-[#4C3EE0] active:scale-95 transition-all outline-none cursor-pointer text-xs uppercase tracking-wider shadow-sm"
                 >
-                  Confirm Registration
+                  Enroll In Safety Circle
                 </button>
               </form>
             </motion.div>

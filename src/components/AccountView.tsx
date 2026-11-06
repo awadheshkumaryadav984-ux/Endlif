@@ -6,7 +6,6 @@ import {
   Phone, 
   Calendar, 
   Sparkles, 
-  Camera, 
   Check, 
   Loader2, 
   Maximize2, 
@@ -16,10 +15,8 @@ import {
   AlertTriangle,
   Shield,
   Star,
-  Lock,
   Key,
   Cpu,
-  Skull,
   ShieldCheck,
   MapPin
 } from 'lucide-react';
@@ -105,9 +102,6 @@ export default function AccountView({ setScreen }: { setScreen?: (screen: any) =
 
   // Fortified Cyber Security Active Guard Portal States
   const [cryptoShieldActive, setCryptoShieldActive] = useState(() => SecureStorage.isCryptoShieldActive());
-  const [pinLockEnabled, setPinLockEnabled] = useState(() => localStorage.getItem('endlif_pin_lock_enabled') === 'true');
-  const [appPin, setAppPin] = useState(() => localStorage.getItem('endlif_app_pin') || '1234');
-  const [decoyPin, setDecoyPin] = useState(() => localStorage.getItem('endlif_decoy_pin') || '0000');
   const [intruderLogs, setIntruderLogs] = useState<IntruderLog[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('endlif_intruder_logs') || '[]');
@@ -125,15 +119,6 @@ export default function AccountView({ setScreen }: { setScreen?: (screen: any) =
 
   // Interactive UI trigger states
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const [scanningStatus, setScanningStatus] = useState<'idle' | 'initializing' | 'scanning' | 'success' | 'failed'>('idle');
-  const [scanProgress, setScanProgress] = useState(0);
-  const [scanOutput, setScanOutput] = useState<{ gender: 'Male' | 'Female' | 'Other'; confidence: number } | null>(null);
-  const [telemetryLog, setTelemetryLog] = useState('Awaiting scanner activation...');
-
-  // Video element references for hardware live camera 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
 
   // Load from local storage
   useEffect(() => {
@@ -166,11 +151,6 @@ export default function AccountView({ setScreen }: { setScreen?: (screen: any) =
     const profile = { name, gender, email, devicePhone, dob };
     SecureStorage.setItem('endlif_user_profile', JSON.stringify(profile));
     SecureStorage.setItem('endlif_user_avatar', JSON.stringify(avatarConfig));
-    
-    // Save PIN variables
-    localStorage.setItem('endlif_pin_lock_enabled', pinLockEnabled ? 'true' : 'false');
-    localStorage.setItem('endlif_app_pin', appPin);
-    localStorage.setItem('endlif_decoy_pin', decoyPin);
     localStorage.setItem('endlif_crypto_shield_active', cryptoShieldActive ? 'true' : 'false');
     
     // Dispatch event to synchronize across potential views
@@ -225,8 +205,8 @@ export default function AccountView({ setScreen }: { setScreen?: (screen: any) =
   };
 
   const simulateHackerAttack = () => {
-    const wrongPins = ['9875', '1111', '8952', '5555', '0432'];
-    const selectedWrongPin = wrongPins[Math.floor(Math.random() * wrongPins.length)];
+    const attackSignatures = ['TOKEN_BYPASS_9875', 'SESSION_SPOOF_1111', 'EXPLOIT_PAYLOAD_8952', 'AUTH_FAILURE_5555', 'TAMPER_INJECTION_0432'];
+    const selectedSignature = attackSignatures[Math.floor(Math.random() * attackSignatures.length)];
     
     const mockLat = +(37.7749 + (Math.random() - 0.5) * 0.05).toFixed(4);
     const mockLng = +(-122.4194 + (Math.random() - 0.5) * 0.05).toFixed(4);
@@ -235,7 +215,7 @@ export default function AccountView({ setScreen }: { setScreen?: (screen: any) =
     const newLog: IntruderLog = {
       id: `intruder_${Date.now()}`,
       timestamp: new Date().toLocaleString(),
-      pinEntered: selectedWrongPin,
+      attemptDetails: selectedSignature,
       coords: { lat: mockLat, lng: mockLng },
       snapshotUrl: mockImg
     };
@@ -255,110 +235,9 @@ export default function AccountView({ setScreen }: { setScreen?: (screen: any) =
   };
 
   const autoFixVaultGaps = () => {
-    setPinLockEnabled(true);
-    localStorage.setItem('endlif_pin_lock_enabled', 'true');
     setCryptoShieldActive(true);
     migrateLocalStorageKeys(true);
     runSecurityAudit();
-  };
-
-  // Turn on device camera if available, fallback gracefully
-  const startCamera = async () => {
-    setScanningStatus('initializing');
-    setScanProgress(0);
-    setScanOutput(null);
-    setTelemetryLog('Connecting target video feed hardware...');
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user', width: 320, height: 320 } 
-      });
-      streamRef.current = stream;
-      setIsCameraActive(true);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(e => console.log("Video play interrupted", e));
-      }
-
-      setScanningStatus('scanning');
-      setTelemetryLog('Face matrix locked. Measuring structural anchors...');
-    } catch (err) {
-      console.warn('Hardware camera not accessible, running simulated live radar', err);
-      setIsCameraActive(false);
-      setScanningStatus('scanning');
-      setTelemetryLog('Camera hardware blocked. Initializing remote satellite radar simulation...');
-    }
-  };
-
-  // Handle dynamic progressive biometric simulation logic
-  useEffect(() => {
-    let interval: any = null;
-    if (scanningStatus === 'scanning') {
-      const logs = [
-        'Locking biometric outline matrix...',
-        'Tracing jawline contours and facial anchors...',
-        'Matching pores density with thermal neural filters...',
-        'Detecting skeletal proportions & voice harmonic metadata...',
-        'Resolving classification markers...',
-        'Computing statistical alignment confidence...',
-        'Biometric check finished successfully!'
-      ];
-
-      interval = setInterval(() => {
-        setScanProgress((prev) => {
-          const next = prev + 4;
-          
-          // Speed logs
-          const logIdx = Math.min(Math.floor((next / 100) * logs.length), logs.length - 1);
-          setTelemetryLog(logs[logIdx]);
-
-          if (next >= 100) {
-            clearInterval(interval);
-            
-            // Generate classifications (simulating facial recognition based on typical distribution)
-            const options: ('Male' | 'Female' | 'Other')[] = ['Female', 'Male', 'Other'];
-            const randomPick = options[Math.floor(Math.random() * options.length)];
-            const randomConf = +(95 + Math.random() * 4.8).toFixed(2);
-
-            setScanOutput({
-              gender: randomPick,
-              confidence: randomConf
-            });
-            setScanningStatus('success');
-            stopCameraStream();
-            return 100;
-          }
-          return next;
-        });
-      }, 120);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [scanningStatus]);
-
-  const stopCameraStream = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setIsCameraActive(false);
-  };
-
-  const cancelScanner = () => {
-    stopCameraStream();
-    setScanningStatus('idle');
-    setScanProgress(0);
-    setScanOutput(null);
-  };
-
-  const applyClassifiedGender = () => {
-    if (scanOutput) {
-      setGender(scanOutput.gender);
-      cancelScanner();
-    }
   };
 
   // Mascot Animation Definitions
@@ -562,129 +441,6 @@ export default function AccountView({ setScreen }: { setScreen?: (screen: any) =
                 )}
               </button>
             </div>
-          </div>
-        ))}
-
-        {/* Accordion Item: Biometric Face Scanner */}
-        {renderAccordionItem('face_detection', `📷 Biometric Face Detection Scan`, (
-          <div className="space-y-4 text-center">
-            {scanningStatus === 'idle' && (
-              <div className="space-y-3 py-2">
-                <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center mx-auto bg-slate-50/50">
-                  <Camera className="w-8 h-8 text-slate-400" />
-                </div>
-                <div className="max-w-sm mx-auto space-y-1.5">
-                  <h4 className="font-bold text-xs text-slate-800">No active scan file</h4>
-                  <p className="text-[10px] text-slate-400 leading-normal">
-                    Initiate a high-resolution facial scan using your device's camera to compute biometric profile variables.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={startCamera}
-                  className="py-2 px-4 bg-indigo-600 hover:bg-indigo-550 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-98 cursor-pointer inline-flex items-center gap-1.5"
-                >
-                  <Sparkles className="w-3.5 h-3.5" /> Initialize Facial Scanner
-                </button>
-              </div>
-            )}
-
-            {(scanningStatus === 'initializing' || scanningStatus === 'scanning') && (
-              <div className="space-y-4 py-2">
-                {/* Visual Viewfinder container */}
-                <div className="relative w-40 h-40 rounded-full border-4 border-indigo-600 overflow-hidden mx-auto bg-slate-950 flex items-center justify-center shadow-lg">
-                  {isCameraActive ? (
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="w-full h-full object-cover transform -scale-x-100"
-                    />
-                  ) : (
-                    // Fallback visual matrix effect
-                    <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center overflow-hidden">
-                      {/* Grid scanning pattern */}
-                      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-500/20 via-transparent to-transparent animate-pulse" />
-                      <div className="w-full h-0.5 bg-indigo-500 absolute top-0 left-0 shadow-[0_0_8px_#6366f1] animate-[bounce_2s_infinite]" />
-                      <span className="text-[10px] font-mono font-black text-indigo-400 uppercase tracking-widest">
-                        FEED SIMULATION
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Circular scanning overlay line */}
-                  <div className="absolute inset-x-0 w-full h-[2px] bg-indigo-400 shadow-[0_0_8px_#818cf8] biometric-scan-line pointer-events-none" />
-                  
-                  {/* Target crosshairs */}
-                  <div className="absolute w-6 h-[1px] bg-indigo-400/50" />
-                  <div className="absolute h-6 w-[1px] bg-indigo-400/50" />
-                </div>
-
-                <div className="space-y-2 max-w-sm mx-auto">
-                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
-                    <span>PROGRESS</span>
-                    <span>{scanProgress}%</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-indigo-600 transition-all duration-300" style={{ width: `${scanProgress}%` }} />
-                  </div>
-                  <div className="bg-slate-950 text-indigo-400 font-mono text-[9px] py-1.5 px-3 rounded-lg border border-slate-800 text-left h-10 overflow-hidden select-none">
-                    <span className="animate-pulse mr-1">&gt;</span>
-                    {telemetryLog}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={cancelScanner}
-                  className="py-1.5 px-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-lg transition-all cursor-pointer"
-                >
-                  Cancel Scanner
-                </button>
-              </div>
-            )}
-
-            {scanningStatus === 'success' && (
-              <div className="space-y-4 py-2">
-                <div className="w-20 h-20 rounded-full bg-emerald-50 border border-emerald-150 flex items-center justify-center mx-auto text-emerald-600">
-                  <CheckCircle2 className="w-10 h-10 animate-[bounce_0.6s_ease-out]" />
-                </div>
-                
-                <div className="max-w-xs mx-auto bg-slate-50 border border-slate-150 p-3 rounded-2xl space-y-2">
-                  <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-150 px-2 py-0.5 rounded uppercase tracking-wider">
-                    Scan Authorized
-                  </span>
-                  <div className="grid grid-cols-2 gap-2 text-left pt-1">
-                    <div className="bg-white p-2 rounded-xl border border-slate-100">
-                      <span className="text-[8px] font-bold text-slate-400 block uppercase">Classified Gen</span>
-                      <span className="text-xs font-black text-slate-800">{scanOutput?.gender}</span>
-                    </div>
-                    <div className="bg-white p-2 rounded-xl border border-slate-100">
-                      <span className="text-[8px] font-bold text-slate-400 block uppercase">Confidence</span>
-                      <span className="text-xs font-black text-slate-800 font-mono">{scanOutput?.confidence}%</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={applyClassifiedGender}
-                    className="py-2 px-4 bg-slate-900 hover:bg-slate-850 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-98 cursor-pointer flex items-center gap-1"
-                  >
-                    Apply to Profile
-                  </button>
-                  <button
-                    type="button"
-                    onClick={startCamera}
-                    className="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-all cursor-pointer"
-                  >
-                    Retake Scan
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         ))}
 
@@ -901,70 +657,6 @@ export default function AccountView({ setScreen }: { setScreen?: (screen: any) =
                       )}
                     </div>
                   </div>
-
-                  <div className="bg-slate-50 border border-slate-150 p-3 rounded-2xl space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-150 flex items-center justify-center text-indigo-600 shrink-0 mt-0.5">
-                        <Lock className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0 text-left">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-extrabold text-[11px] text-slate-900 uppercase tracking-tight">Tactical PIN Lock Gate</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPinLockEnabled(!pinLockEnabled);
-                              if (window.navigator?.vibrate) window.navigator.vibrate([100]);
-                            }}
-                            className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer outline-none shrink-0 ${
-                              pinLockEnabled ? 'bg-indigo-600' : 'bg-slate-300'
-                            }`}
-                          >
-                            <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${pinLockEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
-                          </button>
-                        </div>
-                        <p className="text-[10px] text-slate-455 leading-normal mt-0.5">
-                          Guards database access upon startup with biometric validation or a code. Helps block physical theft threats.
-                        </p>
-                      </div>
-                    </div>
-
-                    {pinLockEnabled && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="pt-2.5 border-t border-slate-200/50 grid grid-cols-2 gap-2 text-left"
-                      >
-                        <div>
-                          <label className="block text-[8px] font-black text-slate-405 uppercase tracking-wider mb-1">
-                            1. LOCK PIN CODE (4 Digits)
-                          </label>
-                          <input
-                            type="text"
-                            maxLength={4}
-                            value={appPin}
-                            onChange={(e) => setAppPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                            className="w-full bg-white border border-slate-200 py-1.5 px-2.5 rounded-lg text-xs font-mono font-bold tracking-widest text-indigo-600 focus:border-indigo-500 outline-none"
-                            placeholder="1234"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] font-black text-rose-405 uppercase tracking-wider mb-1 flex items-center gap-0.5">
-                            <Skull className="w-2.5 h-2.5 text-rose-500 shrink-0" /> 2. COERCION DECOY PIN
-                          </label>
-                          <input
-                            type="text"
-                            maxLength={4}
-                            value={decoyPin}
-                            onChange={(e) => setDecoyPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                            className="w-full bg-white border border-slate-200 py-1.5 px-2.5 rounded-lg text-xs font-mono font-bold tracking-widest text-rose-500 focus:border-rose-350 outline-none"
-                            placeholder="0000"
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-                  </div>
                 </motion.div>
               )}
 
@@ -1097,7 +789,7 @@ export default function AccountView({ setScreen }: { setScreen?: (screen: any) =
                       <ShieldCheck className="w-8 h-8 text-emerald-500/30 mx-auto" />
                       <p className="text-[10px] font-bold uppercase tracking-wider">Storage is quiet and locked</p>
                       <p className="text-[9px] text-slate-455 leading-normal max-w-xs mx-auto">
-                        No intrusion threats recorded. Set your lock PIN above and enter keys incorrectly to test instant photo and geography tracking actions.
+                        No unauthorized access attempts recorded. Storage scrambler and device protection layers are active.
                       </p>
                     </div>
                   ) : (
@@ -1117,7 +809,7 @@ export default function AccountView({ setScreen }: { setScreen?: (screen: any) =
                               <span className="text-[8px] font-mono text-slate-455 font-bold leading-none">{log.timestamp}</span>
                             </div>
                             <p className="text-[10px] font-bold text-slate-800 leading-normal">
-                              Entered PIN: <strong className="font-mono text-rose-600 text-xs font-black">{log.pinEntered}</strong>
+                              Threat Signature: <strong className="font-mono text-rose-600 text-xs font-black">{log.attemptDetails || log.pinEntered || 'BLOCKED_SIGNATURE'}</strong>
                             </p>
                           </div>
                         </div>
@@ -1152,7 +844,7 @@ export default function AccountView({ setScreen }: { setScreen?: (screen: any) =
 
         {/* Elephant Mascot Avatar */}
         <motion.div
-          variants={mascotAnimation}
+          variants={mascotAnimation as any}
           animate={isMascotReacting ? "react" : "idle"}
           className="w-15 h-15 rounded-full bg-gradient-to-tr from-slate-900 via-slate-950 to-indigo-950 border-2 border-white shadow-xl flex items-center justify-center cursor-pointer pointer-events-auto active:scale-95 transition-shadow hover:shadow-[0_0_15px_rgba(99,102,241,0.3)]"
           onClick={() => {

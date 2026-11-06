@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import ReactMarkdown from 'react-markdown';
 import { 
   Mic, 
   Keyboard, 
@@ -27,15 +28,34 @@ import {
   MapPin,
   PhoneCall,
   ExternalLink,
-  Globe
+  Globe,
+  Timer,
+  Siren,
+  ShieldAlert,
+  Zap,
+  Clock,
+  ShieldX,
+  LifeBuoy,
+  Bell,
+  CheckCircle2,
+  ChevronRight,
+  Lock,
+  X,
+  Flame,
+  Share2,
+  Users,
+  Navigation,
+  User,
+  UserCheck,
+  Smile
 } from 'lucide-react';
 import { SUGGESTED_ASSISTANT_PROMPTS } from '../data';
-import { AssistantMessage, Hospital, MapPlace, MapPath } from '../types';
+import { AssistantMessage, Hospital, MapPlace, MapPath, Contact, Screen, EndlifActionChip } from '../types';
 import { APIProvider, useMapsLibrary, Map, useMap, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
 import { SecureStorage } from '../utils/security';
 
 const API_KEY =
-  process.env.GOOGLE_MAPS_PLATFORM_KEY ||
+  (typeof process !== 'undefined' ? process.env?.GOOGLE_MAPS_PLATFORM_KEY : '') ||
   (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
   (globalThis as any).GOOGLE_MAPS_PLATFORM_KEY ||
   '';
@@ -126,30 +146,36 @@ interface IntelligenceProtocol {
   explanation: string;
 }
 
-interface AssistantViewInnerProps {
+interface AssistantViewProps {
+  setScreen?: (screen: Screen) => void;
+  onSosTrigger?: () => void;
+  contacts?: Contact[];
+}
+
+interface AssistantViewInnerProps extends AssistantViewProps {
   placesLib?: any;
   routesLib?: any;
 }
 
-function AssistantViewMapsWrapper() {
+function AssistantViewMapsWrapper(props: AssistantViewProps) {
   const placesLib = useMapsLibrary('places');
   const routesLib = useMapsLibrary('routes');
-  return <AssistantViewInner placesLib={placesLib} routesLib={routesLib} />;
+  return <AssistantViewInner placesLib={placesLib} routesLib={routesLib} {...props} />;
 }
 
-export default function AssistantView() {
+export default function AssistantView(props: AssistantViewProps) {
   if (hasValidKey) {
     return (
       <APIProvider apiKey={API_KEY} version="weekly">
-        <AssistantViewMapsWrapper />
+        <AssistantViewMapsWrapper {...props} />
       </APIProvider>
     );
   } else {
-    return <AssistantViewInner />;
+    return <AssistantViewInner {...props} />;
   }
 }
 
-function AssistantViewInner({ placesLib, routesLib }: AssistantViewInnerProps) {
+function AssistantViewInner({ placesLib, routesLib, setScreen, onSosTrigger, contacts = [] }: AssistantViewInnerProps) {
 
   const [isListening, setIsListening] = useState(false);
   const [isTypingMode, setIsTypingMode] = useState(false);
@@ -361,16 +387,40 @@ function AssistantViewInner({ placesLib, routesLib }: AssistantViewInnerProps) {
 
   const [emergencyActive, setEmergencyActive] = useState(false);
 
+  // Active Safety Verification Timer State
+  const [safetyTimerSeconds, setSafetyTimerSeconds] = useState<number | null>(null);
+  const [safetyTimerInitial, setSafetyTimerInitial] = useState<number>(0);
+  const [timerAlertRaised, setTimerAlertRaised] = useState(false);
+
   const [messages, setMessages] = useState<AssistantMessage[]>([
     {
       id: 'welcome',
-      text: 'Monitoring active. Your safety network is online. As Achyuta, the Eternal Guardian of ENDLIF, my super intelligence is fully synchronized with your telemetry. Awaiting instructions.',
+      text: `### Achyuta AI Guardian Synchronized 🛡️\n\nI am **Achyuta AI**, the intelligent personal safety companion of **ENDLIF**, powered by **Gemini 2.5 Flash** with real-time **Search Grounding** 🌐.\n\nMy neural engine is linked directly with your Endlif safety sensors, guardian circle, and emergency escalation systems. I have real-time access to live web knowledge—including verified emergency numbers, current weather alerts, disaster advisories, police precinct contacts, and first-aid protocols.`,
       sender: 'assistant',
-      timestamp: 'Just now'
+      timestamp: 'Just now',
+      safetyLevel: 'normal',
+      tacticalSummary: 'Search Grounding & Endlif perimeter monitors active.',
+      source: 'gemini',
+      model: 'gemini-2.5-flash',
+      isSearchGrounded: true,
+      groundingQueries: ['official emergency response protocols', 'real-time guardian telemetry'],
+      actions: [
+        { id: 'start_15m', label: 'Start 15m Safety Timer', type: 'timer', minutes: 15 },
+        { id: 'open_circle', label: 'Safety Circle', type: 'navigate', screen: 'circle' },
+        { id: 'emergency_sos', label: 'Trigger SOS Beacon', type: 'sos' }
+      ]
     }
   ]);
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [activeProtocol, setActiveProtocol] = useState<IntelligenceProtocol | null>(null);
+  const [toastNotification, setToastNotification] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastNotification(msg);
+    setTimeout(() => {
+      setToastNotification(null);
+    }, 4000);
+  };
 
   const messageEndRef = useRef<HTMLDivElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -391,6 +441,130 @@ function AssistantViewInner({ placesLib, routesLib }: AssistantViewInnerProps) {
       stopVoice();
     };
   }, []);
+
+  // Timer countdown hook
+  useEffect(() => {
+    if (safetyTimerSeconds === null || safetyTimerSeconds <= 0) return;
+    const interval = setInterval(() => {
+      setSafetyTimerSeconds(prev => {
+        if (prev === null) return null;
+        if (prev <= 1) {
+          clearInterval(interval);
+          handleSafetyTimerExpired();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [safetyTimerSeconds]);
+
+  const handleSafetyTimerExpired = () => {
+    setTimerAlertRaised(true);
+    if (window.navigator?.vibrate) {
+      window.navigator.vibrate([300, 150, 300, 150, 600]);
+    }
+    const alertMsg: AssistantMessage = {
+      id: `timer_expired_${Date.now()}`,
+      text: `🚨 **SAFETY VERIFICATION ESCALATION INITIATED**\n\nYour transit safety countdown expired without a verification check-in. Endlif has simulated Level 3 Guardian escalation: urgent distress dispatch with live GPS coordinates prepared for your trusted Safety Circle!`,
+      sender: 'assistant',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      safetyLevel: 'critical',
+      tacticalSummary: 'CHECK-IN MISSED: Escalation protocol active.',
+      actions: [
+        { id: 'im_safe', label: 'I Am Safe (Reset)', type: 'info', description: 'Confirm safe' },
+        { id: 'sos_trigger', label: 'Trigger Full SOS Siren', type: 'sos' },
+        { id: 'call_112', label: 'Call Emergency (112 / 911)', type: 'call', phone: '112' }
+      ]
+    };
+    setMessages(prev => [...prev, alertMsg]);
+    if (autoSpeak) {
+      speakVoiceText("Warning. Safety verification check-in has expired. Escalation protocol active.", `timer_expired_${Date.now()}`);
+    }
+  };
+
+  const startSafetyTimer = (minutes: number) => {
+    const totalSec = minutes * 60;
+    setSafetyTimerSeconds(totalSec);
+    setSafetyTimerInitial(totalSec);
+    setTimerAlertRaised(false);
+
+    const timerMsg: AssistantMessage = {
+      id: `timer_${Date.now()}`,
+      text: `⏱️ **Safety Verification Timer Started: ${minutes} Minutes**\n\nEndlif is tracking your transit. If you do not tap **"I Am Safe"** before the timer expires, Achyuta will escalate alerts with your live coordinates to your Safety Circle (${contacts.length > 0 ? `${contacts.length} guardians connected` : 'trusted guardians'}).`,
+      sender: 'assistant',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      safetyLevel: 'caution',
+      tacticalSummary: `Safety verification armed (${minutes} min).`,
+      actions: [
+        { id: 'confirm_safe', label: 'I Am Safe (Check In)', type: 'info' },
+        { id: 'extend_10', label: '+10 Mins Extension', type: 'timer', minutes: 10 },
+        { id: 'sos_trigger', label: 'Emergency SOS', type: 'sos' }
+      ]
+    };
+    setMessages(prev => [...prev, timerMsg]);
+    if (autoSpeak) {
+      speakVoiceText(`Safety timer started for ${minutes} minutes. I will monitor your transit.`, `timer_${Date.now()}`);
+    }
+  };
+
+  const confirmSafetyCheckIn = () => {
+    setSafetyTimerSeconds(null);
+    setTimerAlertRaised(false);
+    const confirmedMsg: AssistantMessage = {
+      id: `safe_${Date.now()}`,
+      text: `🛡️ **Safety Confirmed**: Transit status marked SAFE. Safety Circle standing down. Achyuta perimeter monitor remains active.`,
+      sender: 'assistant',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      safetyLevel: 'normal',
+      tacticalSummary: 'Status verified safe. All monitors nominal.'
+    };
+    setMessages(prev => [...prev, confirmedMsg]);
+  };
+
+  const extendSafetyTimer = (minutes: number) => {
+    setSafetyTimerSeconds(prev => (prev || 0) + minutes * 60);
+    setTimerAlertRaised(false);
+  };
+
+  const cancelSafetyTimer = () => {
+    setSafetyTimerSeconds(null);
+    setTimerAlertRaised(false);
+  };
+
+  const handleActionClick = (action: EndlifActionChip) => {
+    if (action.type === 'timer') {
+      startSafetyTimer(action.minutes || 15);
+    } else if (action.type === 'sos') {
+      if (onSosTrigger) {
+        onSosTrigger();
+      } else {
+        setEmergencyActive(true);
+      }
+    } else if (action.type === 'call') {
+      if (action.phone) {
+        window.location.href = `tel:${action.phone}`;
+      }
+    } else if (action.type === 'navigate') {
+      if (action.screen) {
+        if (setScreen) {
+          setScreen(action.screen as Screen);
+        } else {
+          window.dispatchEvent(new CustomEvent('endlif_navigate', { detail: action.screen }));
+        }
+      }
+    } else if (action.type === 'search') {
+      handleAiResponse(action.query || 'find nearest hospital');
+    } else if (action.type === 'covert') {
+      if (setScreen) {
+        setScreen('account');
+      } else {
+        window.dispatchEvent(new CustomEvent('endlif_navigate', { detail: 'account' }));
+      }
+    } else if (action.type === 'info') {
+      confirmSafetyCheckIn();
+    }
+  };
 
   // Speak a message
   const speakVoiceText = (text: string, msgId: string) => {
@@ -653,205 +827,190 @@ function AssistantViewInner({ placesLib, routesLib }: AssistantViewInnerProps) {
     const isHospitalQuery = categoryType === 'hospital' || query.includes('emergency care') || query.includes('medical center');
     const wantsGovt = query.includes('government') || query.includes('govt') || query.includes('public');
 
-    // Simulate thinking delay (mimics biological formulating + maps remote loading)
-    setTimeout(async () => {
+    try {
       let responseText = '';
       let detectedHospitals: Hospital[] = [];
       let detectedPlaces: MapPlace[] = [];
       let detectedPath: MapPath | null = null;
 
-      try {
-        // Direct structured lookup inside Achyuta's Safety Knowledge Base
-        if (query.includes('what is endlif') || query.includes('what is the mission of endlif') || query.includes('endlif mission')) {
-          responseText = `ENDLIF is an intelligent safety ecosystem designed to protect individuals through guardian networks, safety verification, GPS monitoring, emergency response systems, and AI-powered assistance.
-
-Its mission is simple:
-**Protect life before emergencies become tragedies.**`;
-        } 
-        else if (query.includes('how does safety circle work') || query.includes('safety circle') || query.includes('guardian network') || query.includes('trusted guardian')) {
-          responseText = `**Safety Circle** is your trusted guardian network.
-
-When you fail to confirm your safety, ENDLIF automatically alerts selected guardians and shares relevant status information to help ensure your wellbeing.`;
-        } 
-        else if (query.includes('what happens if i miss check-in') || query.includes('miss check-in') || query.includes('missed checkin') || query.includes('miss checkin') || query.includes('miss check-ins')) {
-          responseText = `The **Safety Verification Engine** begins escalation:
-
-1. **Reminder notification** (instant system nudge)
-2. **Secondary reminder** (high-volume alert)
-3. **Guardian alert** (direct SMS message dispatch)
-4. **GPS synchronization** (live beacon sharing)
-5. **Emergency escalation** if configured (national services routing)`;
-        }
-        else if (query.includes('dragon companion') || query.includes('dragon') || query.includes('nft') || query.includes('interactive companion')) {
-          responseText = `The **Dragon Companion** is your interactive digital safety partner that levels up as your profile gains XP from check-ins and creator events, reflecting your active resilience status through evolving digital scales and customized items.`;
-        }
-        else if (query.includes('creator hub') || query.includes('creator') || query.includes('points') || query.includes('statue') || query.includes('guardian award')) {
-          responseText = `The **Creator Hub** empowers you to livestream safe routes, broadcast security guides, and participate in civic coordination streams. Reaching milestones in the hub awards points used to forge prestigious regional Guardian Statues.`;
-        }
-        else if (query.includes('future technology') || query.includes('future endlif') || query.includes('technologies')) {
-          responseText = `Future ENDLIF technologies include decentralized mesh-network emergency alerts, advanced bi-directional safety beacons, automated safe-routing rescue drones, and passive biometric micro-scanners for continuous health tracking.`;
-        }
-        else if (query.includes('biometric') || query.includes('vocal print') || query.includes('voice check') || query.includes('face scan')) {
-          responseText = `**Biometric Verification** uses face scans and unique voiceprint analysis to authenticate your safety check-ins and lock/unlock your private secure vaults, preventing unauthorized access during coerced situations.`;
-        }
-        else if (query.includes('emergency services') || query.includes('ambulance') || query.includes('police') || query.includes('fire')) {
-          responseText = `In any urgent risk scenario, please tap the red alert beacon to switch into tactical Emergency mode. This grants one-tap connections to regional police, ambulance, or fire dispatches, and fires emergency notifications to your trusted guardians immediately.`;
-        }
-        else if (isRouteQuery) {
-          let destTerm = '';
-          const prepositions = ['path to', 'route to', 'directions to', 'how to go to', 'how to walk to', 'how do i reach', 'how do i go to', 'direction to', 'go to', 'walk to', 'reach to'];
-          for (const prep of prepositions) {
-            if (query.includes(prep)) {
-              const index = query.indexOf(prep);
-              destTerm = userInput.slice(index + prep.length).trim();
-              break;
-            }
+      // Handle Route & Place searches with Google Maps if applicable
+      if (isRouteQuery) {
+        let destTerm = '';
+        const prepositions = ['path to', 'route to', 'directions to', 'how to go to', 'how to walk to', 'how do i reach', 'how do i go to', 'direction to', 'go to', 'walk to', 'reach to'];
+        for (const prep of prepositions) {
+          if (query.includes(prep)) {
+            const index = query.indexOf(prep);
+            destTerm = userInput.slice(index + prep.length).trim();
+            break;
           }
-          if (!destTerm) {
-            if (query.includes('paths to')) {
-              destTerm = userInput.slice(query.indexOf('paths to') + 8).trim();
-            } else if (query.includes('to ')) {
-              destTerm = userInput.slice(query.indexOf('to ') + 3).trim();
-            } else {
-              destTerm = categoryType || 'nearest safety zone';
-            }
+        }
+        if (!destTerm) {
+          if (query.includes('paths to')) {
+            destTerm = userInput.slice(query.indexOf('paths to') + 8).trim();
+          } else if (query.includes('to ')) {
+            destTerm = userInput.slice(query.indexOf('to ') + 3).trim();
+          } else {
+            destTerm = categoryType || 'nearest safety zone';
           }
+        }
 
-          if (hasValidKey && placesLib && routesLib) {
-            try {
-              const { places } = await placesLib.Place.searchByText({
-                textQuery: destTerm,
-                fields: ['displayName', 'location', 'formattedAddress'],
-                locationBias: { lat: latitude, lng: longitude },
-                maxResultCount: 1
+        if (hasValidKey && placesLib && routesLib) {
+          try {
+            const { places } = await placesLib.Place.searchByText({
+              textQuery: destTerm,
+              fields: ['displayName', 'location', 'formattedAddress'],
+              locationBias: { lat: latitude, lng: longitude },
+              maxResultCount: 1
+            });
+
+            if (places && places.length > 0) {
+              const place = places[0];
+              const destLat = place.location?.lat() || latitude;
+              const destLng = place.location?.lng() || longitude;
+
+              const result = await routesLib.Route.computeRoutes({
+                origin: { lat: latitude, lng: longitude },
+                destination: { lat: destLat, lng: destLng },
+                travelMode: 'DRIVING',
+                fields: ['path', 'distanceMeters', 'durationMillis']
               });
 
-              if (places && places.length > 0) {
-                const place = places[0];
-                const destLat = place.location?.lat() || latitude;
-                const destLng = place.location?.lng() || longitude;
-
-                const result = await routesLib.Route.computeRoutes({
-                  origin: { lat: latitude, lng: longitude },
-                  destination: { lat: destLat, lng: destLng },
-                  travelMode: 'DRIVING',
-                  fields: ['path', 'distanceMeters', 'durationMillis']
-                });
-
-                const route = result.routes?.[0];
-                const distanceKm = route ? parseFloat((route.distanceMeters / 1000).toFixed(2)) : calculateDistance(latitude, longitude, destLat, destLng);
-                const durationMins = route ? Math.round(parseInt(String(route.durationMillis)) / 60000) : Math.round(distanceKm * 2);
-
-                detectedPath = {
-                  origin: { lat: latitude, lng: longitude },
-                  destination: { lat: destLat, lng: destLng },
-                  destinationName: place.displayName || destTerm,
-                  distanceKm,
-                  durationMins
-                };
-
-                responseText = `Computed dynamic safety routes to **${detectedPath.destinationName}** from your active sector coordinate center using live Google Maps.\n\n- **Route distance**: ${distanceKm} km\n- **Estimated travel time**: ${durationMins} minutes\n- **Navigation status**: Path plotted on your visual console feedback. I advise selecting high-viz corridors.`;
-              } else {
-                throw new Error("No place resolved");
-              }
-            } catch (innerErr) {
-              // Fallback routing inside live maps context
-              const mockDestCoords = { lat: latitude + 0.007, lng: longitude - 0.005 };
-              const dist = calculateDistance(latitude, longitude, mockDestCoords.lat, mockDestCoords.lng);
-              const duration = Math.round(dist * 2.3);
+              const route = result.routes?.[0];
+              const distanceKm = route ? parseFloat((route.distanceMeters / 1000).toFixed(2)) : calculateDistance(latitude, longitude, destLat, destLng);
+              const durationMins = route ? Math.round(parseInt(String(route.durationMillis)) / 60000) : Math.round(distanceKm * 2);
 
               detectedPath = {
                 origin: { lat: latitude, lng: longitude },
-                destination: mockDestCoords,
-                destinationName: destTerm,
-                distanceKm: dist,
-                durationMins: duration
+                destination: { lat: destLat, lng: destLng },
+                destinationName: place.displayName || destTerm,
+                distanceKm,
+                durationMins
               };
-              responseText = `Computed navigation vectors toward **${destTerm}**. Standard corridor distance is ${dist} km, with an estimated travel duration of ${duration} minutes. I have plotted the recommended coordinates on your visual overlays.`;
+
+              responseText = `Computed dynamic safety routes to **${detectedPath.destinationName}** from your active sector coordinate center using live Maps telemetry.\n\n- **Route distance**: ${distanceKm} km\n- **Estimated travel time**: ${durationMins} minutes\n- **Navigation status**: Path plotted on your visual console feedback. I advise selecting high-viz corridors.`;
             }
-          } else {
-            // Simulated Fallback Route
-            const mockDestCoords = { lat: latitude + 0.006, lng: longitude + 0.006 };
-            const dist = calculateDistance(latitude, longitude, mockDestCoords.lat, mockDestCoords.lng);
-            const duration = Math.round(dist * 2.5);
-
-            detectedPath = {
-              origin: { lat: latitude, lng: longitude },
-              destination: mockDestCoords,
-              destinationName: destTerm || 'Active Emergency Zone',
-              distanceKm: dist,
-              durationMins: duration
-            };
-            
-            let statusNote = !hasValidKey 
-              ? `*(Activate full live path plotting by configuring GOOGLE_MAPS_PLATFORM_KEY in secrets)*`
-              : `*(Simulated path using mathematical sector indexing)*`;
-
-            responseText = `I mapped your requested route vector to **${detectedPath.destinationName}** using regional telemetry.\n\n- **Calculated track distance**: ${dist} km\n- **Computed ETA**: ${duration} minutes\n- **Active sector center**: ${latitude}° N, ${Math.abs(longitude)}° W\n\n${statusNote}`;
+          } catch (innerErr) {
+            console.warn("Routes live lookup fallback", innerErr);
           }
-        } 
-        else if (categoryType) {
-          // Places category search
-          if (isHospitalQuery && !query.includes('nearest') && !query.includes('find') && !query.includes('search')) {
-            detectedHospitals = getHospitals(latitude, longitude, wantsGovt);
-            if (detectedHospitals.length > 0) {
-              const closest = detectedHospitals[0];
-              responseText = wantsGovt
-                ? `I analyzed regional government hospital indexes near you. Mapped ${detectedHospitals.length} units. Nearest is **${closest.name}** at a distance of ${closest.distanceKm} km. Plotted route is ready on your visual overlay.`
-                : `Located ${detectedHospitals.length} active medical and trauma care facilities surrounding your location. The closest unit is **${closest.name}** at ${closest.distanceKm} km. Select 'Get Route' below to view full details.`;
-            } else {
-              responseText = "Could not resolve matching coordinate-checked hospitals for this zone.";
+        }
+      } else if (categoryType) {
+        if (isHospitalQuery && !query.includes('nearest') && !query.includes('find') && !query.includes('search')) {
+          detectedHospitals = getHospitals(latitude, longitude, wantsGovt);
+        } else if (hasValidKey && placesLib) {
+          try {
+            const textQuery = `closest ${categoryType} near me`;
+            const { places } = await placesLib.Place.searchByText({
+              textQuery,
+              fields: ['displayName', 'formattedAddress', 'location', 'rating'],
+              locationBias: { lat: latitude, lng: longitude },
+              maxResultCount: 4
+            });
+
+            if (places && places.length > 0) {
+              detectedPlaces = places.map(p => ({
+                name: p.displayName || 'Regional Center',
+                address: p.formattedAddress || 'Nearby thoroughfare',
+                lat: p.location?.lat() || latitude,
+                lng: p.location?.lng() || longitude,
+                rating: p.rating || undefined,
+                distanceKm: calculateDistance(latitude, longitude, p.location?.lat() || latitude, p.location?.lng() || longitude)
+              })).sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
             }
-          } else {
-            // General Places (Restaurant, Gym, Mall, Theatre, Police Station, Building)
-            if (hasValidKey && placesLib) {
-              try {
-                const textQuery = `closest ${categoryType} near me`;
-                const { places } = await placesLib.Place.searchByText({
-                  textQuery,
-                  fields: ['displayName', 'formattedAddress', 'location', 'rating'],
-                  locationBias: { lat: latitude, lng: longitude },
-                  maxResultCount: 4
-                });
-
-                if (places && places.length > 0) {
-                  detectedPlaces = places.map(p => ({
-                    name: p.displayName || 'Regional Center',
-                    address: p.formattedAddress || 'Nearby thoroughfare',
-                    lat: p.location?.lat() || latitude,
-                    lng: p.location?.lng() || longitude,
-                    rating: p.rating || undefined,
-                    distanceKm: calculateDistance(latitude, longitude, p.location?.lat() || latitude, p.location?.lng() || longitude)
-                  })).sort((a,b) => (a.distanceKm || 0) - (b.distanceKm || 0));
-
-                  const closest = detectedPlaces[0];
-                  responseText = `Queried live Google Maps for closest secure **${categoryType}s** in your radius. I found **${detectedPlaces.length}** active matches:\n\nThe nearest is **${closest.name}** (${closest.distanceKm} km away, Rated ${closest.rating || 'N/A'} ★). Head to ${closest.address} for closest secure entry, or see all mapped points below.`;
-                } else {
-                  throw new Error("No category matches found");
-                }
-              } catch (innerErr) {
-                detectedPlaces = getSimulatedPlaces(latitude, longitude, categoryType);
-                const closest = detectedPlaces[0];
-                responseText = `Located **${detectedPlaces.length}** options matching **${categoryType}** near your tracking coordinates. The nearest unit is **${closest.name}** at details: ${closest.address} (${closest.distanceKm} km). Coordinates are mapped in your visual HUD.`;
-              }
-            } else {
-              // Simulated sector check
-              detectedPlaces = getSimulatedPlaces(latitude, longitude, categoryType);
-              const closest = detectedPlaces[0];
-              let statusNote = !hasValidKey 
-                ? `*(Activate full dynamic search by configuring GOOGLE_MAPS_PLATFORM_KEY in secrets)*`
-                : `*(Query finished successfully using local cached database)*`;
-
-              responseText = `Computed nearest safe sector matches for **${categoryType}s** relative to your position. Found **${detectedPlaces.length}** local options:\n\nThe absolute closest is **${closest.name}** (${closest.distanceKm} km, at ${closest.address}). Track vectors have been successfully registered on your local dashboard.\n\n${statusNote}`;
-            }
+          } catch (placesErr) {
+            console.warn("Places search live fallback", placesErr);
           }
-        } 
-        else if (protocol.threatLevel === 'critical') {
+        }
+      }
+
+      // Query Gemini API via server endpoint
+      let responseSafetyLevel: 'normal' | 'caution' | 'warning' | 'critical' = 'normal';
+      let responseTacticalSummary: string | undefined;
+      let responseActions: EndlifActionChip[] = [];
+      let responseSource: 'gemini' | 'resilient_fallback' | 'local_guardian_engine' | 'fallback' | undefined = undefined;
+      let responseModel: string | undefined = undefined;
+      let responseGroundingSources: any[] = [];
+      let responseGroundingQueries: string[] = [];
+      let responseIsSearchGrounded = false;
+
+      try {
+        const geminiRes = await fetch('/api/achyuta/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: userInput,
+            history: messages.slice(-8).map(m => ({
+              role: m.sender === 'user' ? 'user' : 'model',
+              text: m.text
+            })),
+            context: {
+              location: { lat: latitude, lng: longitude },
+              detectedPlacesCount: detectedPlaces.length,
+              detectedHospitalCount: detectedHospitals.length,
+              hasDetectedPath: !!detectedPath,
+              destinationName: detectedPath?.destinationName
+            }
+          })
+        });
+
+        if (geminiRes.ok) {
+          const geminiData = await geminiRes.json();
+          if (geminiData?.reply) {
+            responseText = geminiData.reply;
+            responseSafetyLevel = geminiData.safetyLevel || 'normal';
+            responseTacticalSummary = geminiData.tacticalSummary;
+            responseActions = Array.isArray(geminiData.actions) ? geminiData.actions : [];
+            responseSource = geminiData.source;
+            responseModel = geminiData.model;
+            responseGroundingSources = Array.isArray(geminiData.groundingSources) ? geminiData.groundingSources : [];
+            responseGroundingQueries = Array.isArray(geminiData.groundingQueries) ? geminiData.groundingQueries : [];
+            responseIsSearchGrounded = Boolean(geminiData.isSearchGrounded || responseGroundingSources.length > 0);
+          }
+        }
+      } catch (geminiErr) {
+        console.warn("[Achyuta AI] Live Gemini endpoint fetch error, utilizing resilient local safety intelligence:", geminiErr);
+      }
+
+      // If Gemini response was not populated (or offline fallback), use direct knowledge base
+      if (!responseText) {
+        if (query.includes('what is endlif') || query.includes('what is the mission of endlif') || query.includes('endlif mission')) {
+          responseText = `ENDLIF is an intelligent safety ecosystem designed to protect individuals through guardian networks, safety verification, GPS monitoring, emergency response systems, and AI-powered assistance.\n\nIts mission is simple:\n**Protect life before emergencies become tragedies.**`;
+          responseActions = [
+            { id: 'start_timer', label: 'Start 15m Safety Timer', type: 'timer', minutes: 15 },
+            { id: 'view_circle', label: 'View Safety Circle', type: 'navigate', screen: 'circle' }
+          ];
+        } else if (query.includes('how does safety circle work') || query.includes('safety circle') || query.includes('guardian network') || query.includes('trusted guardian')) {
+          responseText = `**Safety Circle** is your trusted guardian network.\n\nWhen you fail to confirm your safety, ENDLIF automatically alerts selected guardians and shares relevant status information to help ensure your wellbeing.`;
+          responseActions = [
+            { id: 'open_circle', label: 'Manage Guardians', type: 'navigate', screen: 'circle' }
+          ];
+        } else if (query.includes('miss check-in') || query.includes('missed checkin') || query.includes('miss checkin')) {
+          responseText = `The **Safety Verification Engine** begins escalation:\n\n1. **Reminder notification** (instant system nudge)\n2. **Secondary reminder** (high-volume alert)\n3. **Guardian alert** (direct FCM push, SMS, and email escalation)\n4. **GPS synchronization** (live beacon sharing)\n5. **Emergency escalation** if configured (national services routing)`;
+          responseActions = [
+            { id: 'test_timer', label: 'Test 5m Safety Timer', type: 'timer', minutes: 5 }
+          ];
+        } else if (protocol.threatLevel === 'critical') {
+          responseSafetyLevel = 'critical';
+          responseTacticalSummary = 'CRITICAL ALERT: Emergency protective shield online.';
           responseText = 'EMERGENCY SHIELD PROTOCOL ONLINE. High-decibel vocal siren calibrated. GPS telemetry broadcasting enabled. Safety circle has been alerted. Find immediate public cover.';
+          responseActions = [
+            { id: 'sos_call', label: 'Call Emergency: 112 / 911', type: 'call', phone: '112' },
+            { id: 'sos_trigger', label: 'Trigger Full SOS Siren', type: 'sos' }
+          ];
         } else if (protocol.threatLevel === 'warning') {
+          responseSafetyLevel = 'warning';
+          responseTacticalSummary = 'ELEVATED RISK: Covert safety monitoring engaged.';
           responseText = 'Covert surveillance mode active. Safety trackers are logging your coordinates silently. Keep walking at a steady pace. I have notified your Safety Circle to standby for real-time contact.';
+          responseActions = [
+            { id: 'timer_15', label: 'Start 15m Safety Timer', type: 'timer', minutes: 15 },
+            { id: 'covert_mode', label: 'Decoy Mode & Covert Defense', type: 'covert' }
+          ];
         } else if (protocol.threatLevel === 'caution') {
+          responseSafetyLevel = 'caution';
+          responseTacticalSummary = 'CAUTION: Selected well-lit route corridors.';
           responseText = 'Biometric safety metrics calibrated to caution mode. I advise selecting highly illuminated public spaces. Direct tracking routes have been enabled for fallback guidelines.';
+          responseActions = [
+            { id: 'timer_30', label: 'Start 30m Safety Timer', type: 'timer', minutes: 30 }
+          ];
         } else {
           const profileStr = SecureStorage.getItem('endlif_user_profile');
           let profile = { name: 'Adele Vance', dob: '1998-05-14', gender: 'Female' };
@@ -859,11 +1018,12 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
             try { profile = JSON.parse(profileStr); } catch (e) { console.error(e); }
           }
           const birthYear = profile.dob ? profile.dob.split('-')[0] : '1998';
-          responseText = `Acknowledged in super-intelligent safety monitoring mode. Profile of ${profile.name} (DOB: ${birthYear}, Gender: ${profile.gender}) is securely registered in my neural network. Achyuta, your super intelligent AI, is ready. Let me know what you need or search for facilities: e.g., "find nearest restaurant", "gym near me", "path to work".`;
+          responseText = `Achyuta AI Guardian is active and synchronized with ${profile.name}'s telemetry (DOB: ${birthYear}, Gender: ${profile.gender}). All safety protocols are operational. How can I assist you with your safety, navigation, or emergency readiness today?`;
+          responseActions = [
+            { id: 'start_15m', label: 'Start 15m Safety Timer', type: 'timer', minutes: 15 },
+            { id: 'open_circle', label: 'Safety Circle', type: 'navigate', screen: 'circle' }
+          ];
         }
-      } catch (err) {
-        console.error("AI Maps Resolution Error", err);
-        responseText = "I encountered an issue connecting to coordinates indexing services. I suggest checking local cellular signals or consulting our fallback emergency directory index.";
       }
 
       const assistantMsgId = `assistant_${Date.now()}`;
@@ -872,13 +1032,31 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
         text: responseText,
         sender: 'assistant',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        safetyLevel: responseSafetyLevel,
+        tacticalSummary: responseTacticalSummary,
+        actions: responseActions.length > 0 ? responseActions : undefined,
+        source: responseSource,
+        model: responseModel,
+        groundingSources: responseGroundingSources.length > 0 ? responseGroundingSources : undefined,
+        groundingQueries: responseGroundingQueries.length > 0 ? responseGroundingQueries : undefined,
+        isSearchGrounded: responseIsSearchGrounded,
         hospitals: detectedHospitals.length > 0 ? detectedHospitals : undefined,
         places: detectedPlaces.length > 0 ? detectedPlaces : undefined,
         path: detectedPath || undefined
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
-      
+
+      // Automatically sync the active intelligence protocol widget if higher threat detected
+      if (responseSafetyLevel === 'critical' || responseSafetyLevel === 'warning') {
+        setActiveProtocol({
+          threatLevel: responseSafetyLevel,
+          protocolName: responseSafetyLevel === 'critical' ? 'CRITICAL GUARDIAN DEFENSE' : 'ELEVATED TACTICAL SURVEILLANCE',
+          explanation: responseTacticalSummary || 'Achyuta AI Guardian has prioritized defensive protocol for your immediate safety.',
+          actions: responseActions.map(a => a.label)
+        });
+      }
+
       // Keep dashboard active protocol contextual
       if (isHospitalQuery) {
         setActiveProtocol({
@@ -887,7 +1065,7 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
           explanation: `Locating closer lit hospital facilities. Mapped ${detectedHospitals.length} active units with accurate distances.`,
           actions: [
             'Filter surrounding telemetry databases for immediate surgical units',
-            'Pre-load Google Navigation directory APIs',
+            'Pre-load Navigation directory APIs',
             'Standby backup helpline channels for safety callouts'
           ]
         });
@@ -915,6 +1093,7 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
       } else {
         setActiveProtocol(protocol);
       }
+
       setIsAiThinking(false);
 
       if (autoSpeak) {
@@ -922,7 +1101,21 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
           speakVoiceText(responseText, assistantMsgId);
         }, 150);
       }
-    }, 1600);
+    } catch (err) {
+      console.error("AI Resolution Error", err);
+      const fallbackText = "I encountered an issue connecting to intelligence services. I suggest checking local cellular signals or consulting our fallback emergency directory index.";
+      const assistantMsgId = `assistant_${Date.now()}`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantMsgId,
+          text: fallbackText,
+          sender: 'assistant',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+      setIsAiThinking(false);
+    }
   };
 
   const handleSmartCommand = (cmd: string) => {
@@ -999,126 +1192,144 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
   if (emergencyActive) {
     return (
       <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="flex flex-col p-6 pb-28 max-w-[600px] mx-auto w-full mt-16 min-h-[80vh] bg-slate-950 border-2 border-red-500 rounded-[36px] shadow-[0_0_50px_rgba(239,68,68,0.25)] relative overflow-hidden text-white"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className="flex flex-col p-5 sm:p-6 pb-28 max-w-[600px] mx-auto w-full mt-16 min-h-[75vh] bg-white border border-rose-200/90 rounded-3xl shadow-[0_20px_50px_rgba(225,29,72,0.06)] relative overflow-hidden text-slate-900"
         id="achyuta-emergency-panel"
       >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-red-950/45 via-slate-950 to-slate-950 z-0 pointer-events-none" />
-        
-        {/* Flashing hazard strobe */}
-        <div className="absolute top-0 inset-x-0 h-1.5 bg-red-500 animate-pulse z-10" />
+        {/* Subtle emergency accent bar */}
+        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-rose-500 via-rose-600 to-red-600" />
 
-        <div className="relative z-10 space-y-6 flex-1 flex flex-col justify-between">
-          
-          <div className="text-center space-y-2 pt-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-500/20 border border-red-500/50 rounded-full text-red-400 font-mono text-[10px] font-black uppercase tracking-widest animate-pulse">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-[ping_1s_infinite]" />
-              EMERGENCY SHIELD ACTIVE
+        <div className="space-y-6 flex-1 flex flex-col justify-between pt-2">
+          {/* Header */}
+          <div className="text-left space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/80">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" />
+                ENDLIF EMERGENCY PROTOCOL ACTIVE
+              </span>
+              <span className="text-[11px] font-mono font-medium text-slate-400">
+                GPS LOCKED
+              </span>
             </div>
-            <h2 className="text-3xl font-black tracking-tight uppercase leading-none text-red-500 font-sans">TACTICAL CONTROL</h2>
-            <p className="text-[11px] text-slate-350 font-mono">
-              GPS Lock: {latitude}° N, {longitude}° W • Satellite Sync Verified
+
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900 pt-2 font-sans">
+              Emergency Response Controls
+            </h2>
+            <p className="text-xs text-slate-500 font-sans leading-relaxed">
+              Position verified at {latitude.toFixed(4)}° N, {longitude.toFixed(4)}° W. High-priority dispatch channels are armed.
             </p>
           </div>
 
-          {/* Central flashing alert core sphere */}
-          <div className="flex justify-center py-2">
-            <div className="relative w-28 h-28 flex items-center justify-center">
-              <div className="absolute inset-0 rounded-full border border-red-500/30 animate-[ping_1.8s_infinite] opacity-60 pointer-events-none" />
-              <div className="absolute inset-2 rounded-full border border-dashed border-red-500/40 animate-[spin_6s_linear_infinite]" />
-              <div className="absolute inset-0 rounded-full bg-red-500/10 blur-xl animate-pulse" />
-              
-              <div className="w-20 h-20 rounded-full bg-radial-gradient from-red-600 to-red-900 border-2 border-red-400 flex items-center justify-center shadow-[0_0_25px_rgba(239,68,68,0.7)] animate-pulse">
-                <AlertTriangle className="w-10 h-10 text-white" id="hazard-icon" />
-              </div>
+          {/* Central Calm Authority Card */}
+          <div className="bg-rose-50/70 border border-rose-200/80 rounded-2xl p-4 flex items-center gap-3.5 text-left">
+            <div className="w-11 h-11 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-rose-950 font-sans">
+                Immediate Escalation Ready
+              </h3>
+              <p className="text-xs text-rose-800/80 mt-0.5 font-sans leading-normal">
+                Select an authorized action below. Location coordinates and audio telemetry will broadcast automatically.
+              </p>
             </div>
           </div>
 
-          {/* One-click direct rescue targets */}
-          <div className="space-y-4">
-            <p className="text-[10px] font-extrabold text-center text-red-400 font-mono uppercase tracking-widest">
-              TAP IMMEDIATELY TO ROUTE OR TELEPORT ACTIONS
-            </p>
+          {/* Emergency Actions Hierarchy */}
+          <div className="space-y-3">
+            {/* 1. PRIMARY: Instant SOS Alert to All Guardians */}
+            <button 
+              onClick={() => {
+                speakVoiceText("Warning status packets sent. Dispatched secure beacon link to all circle guardians.", "sms_broadcast_voice");
+                showToast("🚨 Emergency SOS telemetry broadcast dispatched to guardians (Father, Mother, Brother) over SMS protocols.");
+              }}
+              className="w-full bg-rose-600 hover:bg-rose-700 text-white h-15 rounded-2xl flex items-center justify-center gap-3 cursor-pointer transition-all active:scale-[0.98] font-bold text-base shadow-[0_8px_20px_rgba(225,29,72,0.25)]"
+              id="emergency-notify-guardians"
+            >
+              <Siren className="w-5 h-5 shrink-0" />
+              <span>Broadcast Instant SOS to All Guardians</span>
+            </button>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* 2. SECONDARY: Call Emergency Services & Share Location */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+              {/* Ambulance */}
               <a 
                 href="tel:911"
                 onClick={() => {
                   speakVoiceText("Dialing Ambulance emergency department. Streaming active coordinates.", "ambulance_dial");
                 }}
-                className="bg-red-950/60 hover:bg-red-900 border border-red-600/60 rounded-2xl h-16 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 text-white no-underline hover:border-red-450 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                className="bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl p-3.5 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 text-slate-900 no-underline shadow-[0_1px_3px_rgba(0,0,0,0.03)] group"
                 id="emergency-btn-ambulance"
               >
-                <span className="text-xl">🚑</span>
-                <span className="text-[10px] font-black uppercase tracking-wider">Ambulance</span>
+                <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <HeartPulse className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-semibold text-slate-800">Ambulance</span>
               </a>
 
+              {/* Police */}
               <a 
                 href="tel:911"
                 onClick={() => {
                   speakVoiceText("Requesting immediate police dispatch to GPS markers.", "police_dial");
                 }}
-                className="bg-red-950/60 hover:bg-red-900 border border-red-600/60 rounded-2xl h-16 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 text-white no-underline hover:border-red-450 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                className="bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl p-3.5 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 text-slate-900 no-underline shadow-[0_1px_3px_rgba(0,0,0,0.03)] group"
                 id="emergency-btn-police"
               >
-                <span className="text-xl">🚓</span>
-                <span className="text-[10px] font-black uppercase tracking-wider">Police</span>
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Shield className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-semibold text-slate-800">Police</span>
               </a>
 
+              {/* Fire Brigade */}
               <a 
                 href="tel:911"
                 onClick={() => {
                   speakVoiceText("Calling fire department dispatch services.", "fire_dial");
                 }}
-                className="bg-red-950/60 hover:bg-red-900 border border-red-600/60 rounded-2xl h-16 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 text-white no-underline hover:border-red-450 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                className="bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl p-3.5 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 text-slate-900 no-underline shadow-[0_1px_3px_rgba(0,0,0,0.03)] group"
                 id="emergency-btn-fire"
               >
-                <span className="text-xl">🔥</span>
-                <span className="text-[10px] font-black uppercase tracking-wider">Fire Brigade</span>
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Flame className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-semibold text-slate-800">Fire Brigade</span>
               </a>
 
+              {/* Share Location */}
               <button 
                 onClick={() => {
-                  const infoText = `Active Coordinates: Latitude ${latitude}, Longitude ${longitude}. Accuracy within 3 meters. Safe-house routing enabled.`;
+                  const infoText = `Active Coordinates: Latitude ${latitude.toFixed(4)}, Longitude ${longitude.toFixed(4)}. Accuracy within 3 meters. Safe-house routing enabled.`;
                   speakVoiceText("Location coordinates compiled and shared successfully.", "loc_share_voice");
-                  alert(infoText);
+                  showToast(infoText);
                 }}
-                className="bg-red-950/60 hover:bg-red-900 border border-red-600/60 rounded-2xl h-16 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 text-white hover:border-red-450 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                className="bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl p-3.5 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 text-slate-900 shadow-[0_1px_3px_rgba(0,0,0,0.03)] group"
                 id="emergency-btn-share-loc"
               >
-                <span className="text-xl">📍</span>
-                <span className="text-[10px] font-black uppercase tracking-wider">Share Location</span>
+                <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Share2 className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-semibold text-slate-800">Share GPS</span>
               </button>
             </div>
-
-            <button 
-              onClick={() => {
-                speakVoiceText("Warning status packets sent. Dispatched secure beacon link to all circle guardians.", "sms_broadcast_voice");
-                alert(`Broadcasting Emergency SOS telemetry packets to pre-registered circles and guardians (Father, Mother, Brother) over SMS protocols.`);
-              }}
-              className="w-full bg-linear-to-r from-red-600 to-rose-600 hover:from-red-550 hover:to-rose-550 border-2 border-red-400 h-14 rounded-2xl flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 font-black uppercase text-xs tracking-wider text-white shadow-lg shadow-red-500/20"
-              id="emergency-notify-guardians"
-            >
-              <span>👨‍👩‍👧‍👦</span>
-              <span>Notify All Guardians (Instant SOS)</span>
-            </button>
           </div>
 
+          {/* 3. TERTIARY: Deactivate Emergency Mode */}
           <div className="pt-2">
             <button 
               onClick={() => {
                 setEmergencyActive(false);
                 speakVoiceText("Emergency override cancelled. Reverting to vigilant standby monitoring.", "cancel_emergency_voice");
               }}
-              className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-800 py-3 rounded-2xl text-slate-400 hover:text-white font-extrabold text-xs uppercase tracking-widest transition-all cursor-pointer"
+              className="w-full bg-slate-100 hover:bg-slate-200 border border-slate-200/80 py-3.5 rounded-2xl text-slate-600 hover:text-slate-900 font-semibold text-xs tracking-wider uppercase transition-all cursor-pointer"
               id="emergency-cancel-btn"
             >
-              Deactivate Red Alert
+              Deactivate Emergency Mode
             </button>
           </div>
-
         </div>
       </motion.div>
     );
@@ -1138,37 +1349,76 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
           to { transform: rotate(360deg); }
         }
         @keyframes wave-bar-pulse {
-          0% { height: 20%; }
+          0% { height: 25%; }
           100% { height: 100%; }
         }
         .animate-wave-bar {
-          animation: wave-bar-pulse 0.8s ease-in-out infinite alternate;
+          animation: wave-bar-pulse 0.75s ease-in-out infinite alternate;
         }
       `}</style>
 
-      {/* Cybernetic Header Layout */}
-      <div className="flex border-b border-slate-200/80 pb-4 mb-5 items-start justify-between">
+      {/* Non-blocking feedback toast */}
+      <AnimatePresence>
+        {toastNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: -16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -16, scale: 0.98 }}
+            className="fixed top-16 left-1/2 -translate-x-1/2 z-[9999] max-w-sm w-[92%] bg-slate-900/95 border border-slate-800 text-white text-xs px-4 py-3 rounded-2xl shadow-xl backdrop-blur-md flex items-center justify-between gap-3 font-sans"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="text-xs leading-tight text-slate-100 font-medium">{toastNotification}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setToastNotification(null)}
+              className="text-slate-400 hover:text-white text-sm cursor-pointer p-1 shrink-0"
+              aria-label="Close notification"
+            >
+              ✕
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Redesigned Premium Header Layout */}
+      <div className="flex border-b border-slate-200/80 pb-4 mb-5 items-center justify-between gap-3">
         <div className="text-left">
-          <h1 className="text-2xl font-mono font-black tracking-widest text-slate-900 leading-none" id="achyuta-title">ACHYUTA</h1>
-          <p className="text-xs text-indigo-605 font-extrabold uppercase mt-1.5 tracking-wider flex items-center gap-1" id="achyuta-subtitle">
-            <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse border-2 border-emerald-250 inline-block" />
-            Guardian Intelligence Online
+          <h1 className="text-2xl font-black tracking-tight text-slate-950 font-sans leading-none" id="achyuta-title">
+            ACHYUTA
+          </h1>
+          <div className="text-[11px] font-bold tracking-wider uppercase text-indigo-600 font-sans mt-1">
+            AI SAFETY INTELLIGENCE
+          </div>
+          <p className="text-xs text-slate-500 font-medium mt-1.5 flex items-center gap-1.5" id="achyuta-subtitle">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse inline-block shrink-0" />
+            <span>Guardian Intelligence Online</span>
           </p>
         </div>
 
-        {/* Custom voice selector button */}
-        <button 
-          onClick={() => setShowVoiceSettings(!showVoiceSettings)}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border outline-none cursor-pointer ${
-            showVoiceSettings 
-              ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-xs' 
-              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-          }`}
-          id="toggle-voices-btn"
-        >
-          <SlidersHorizontal className="w-3.5 h-3.5" />
-          <span>Voices</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Search Grounded status chip */}
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 border border-slate-200 text-slate-700 font-sans shadow-2xs" id="gemini-badge">
+            <Globe className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+            <span className="hidden sm:inline">Search Grounded</span>
+            <span className="sm:hidden">Grounded</span>
+          </div>
+
+          {/* Voice selector button */}
+          <button 
+            onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+            className={`p-2 rounded-xl text-xs font-semibold transition-all border outline-none cursor-pointer flex items-center gap-1.5 ${
+              showVoiceSettings 
+                ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-2xs' 
+                : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+            title="Configure Guardian Voice"
+            id="toggle-voices-btn"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Expandable Voice controllers drawer */}
@@ -1178,51 +1428,55 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden bg-slate-50 border border-slate-200 rounded-[20px] p-4.5 mb-5 space-y-4"
+            className="overflow-hidden bg-white border border-slate-200/90 rounded-2xl p-4.5 mb-5 space-y-4 shadow-xs"
             id="voices-drawer"
           >
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
                 Configure Guardian voice model
               </p>
               
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { id: 'men', label: 'Polite male voice', icon: '👨' },
-                  { id: 'female', label: 'Polite female voice', icon: '👩' },
-                  { id: 'kids', label: 'Kid’s voice', icon: '🧒' },
-                ].map((voice) => (
-                  <button
-                    key={voice.id}
-                    onClick={() => {
-                      setVoiceType(voice.id as any);
-                      const previews = {
-                        female: "Securing polite female speech synthesizer guidelines.",
-                        men: "Calibrating Achyuta's polite male voice profile. How can my intelligence assist you today?",
-                        kids: "Hello! I am your safety voice companion."
-                      };
-                      speakVoiceText(previews[voice.id as 'female' | 'men' | 'kids'], 'preview');
-                    }}
-                    className={`p-2.5 rounded-xl border text-xs font-bold transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
-                      voiceType === voice.id 
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' 
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                    }`}
-                    id={`voice-select-${voice.id}`}
-                  >
-                    <span className="text-lg">{voice.icon}</span>
-                    <span>{voice.label}</span>
-                  </button>
-                ))}
+                  { id: 'men', label: 'Polite male', icon: User },
+                  { id: 'female', label: 'Polite female', icon: UserCheck },
+                  { id: 'kids', label: 'Friendly', icon: Smile },
+                ].map((voice) => {
+                  const Icon = voice.icon;
+                  const isSelected = voiceType === voice.id;
+                  return (
+                    <button
+                      key={voice.id}
+                      onClick={() => {
+                        setVoiceType(voice.id as any);
+                        const previews = {
+                          female: "Securing polite female speech synthesizer guidelines.",
+                          men: "Calibrating Achyuta's polite male voice profile. How can my intelligence assist you today?",
+                          kids: "Hello! I am your safety voice companion."
+                        };
+                        speakVoiceText(previews[voice.id as 'female' | 'men' | 'kids'], 'preview');
+                      }}
+                      className={`p-3 rounded-xl border text-xs font-semibold transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
+                        isSelected 
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' 
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                      id={`voice-select-${voice.id}`}
+                    >
+                      <Icon className={`w-4 h-4 ${isSelected ? 'text-white' : 'text-slate-500'}`} />
+                      <span>{voice.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             {/* Vocal attributes */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
               <div>
-                <label className="flex justify-between items-center text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                <label className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                   <span>Voice pitch</span>
-                  <span className="font-mono text-indigo-600">{(speechPitch).toFixed(1)}x</span>
+                  <span className="font-semibold text-indigo-600">{(speechPitch).toFixed(1)}x</span>
                 </label>
                 <input 
                   type="range" 
@@ -1237,9 +1491,9 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
               </div>
 
               <div>
-                <label className="flex justify-between items-center text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                <label className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                   <span>Voice speed</span>
-                  <span className="font-mono text-indigo-600">{(speechRate).toFixed(1)}x</span>
+                  <span className="font-semibold text-indigo-600">{(speechRate).toFixed(1)}x</span>
                 </label>
                 <input 
                   type="range" 
@@ -1255,10 +1509,10 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
             </div>
 
             {/* Intelligent safe TTS options */}
-            <div className="flex items-center justify-between border-t border-slate-200/60 pt-3">
+            <div className="flex items-center justify-between border-t border-slate-100 pt-3">
               <div className="flex flex-col text-left">
-                <span className="text-xs font-bold text-slate-700">Automated safety narration</span>
-                <span className="text-[10px] text-slate-400">Speak alerts instantly upon text arrival</span>
+                <span className="text-xs font-semibold text-slate-800">Automated safety narration</span>
+                <span className="text-[11px] text-slate-400">Speak alerts instantly upon text arrival</span>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input 
@@ -1274,232 +1528,362 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
           </motion.div>
         )}
       </AnimatePresence>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 animate-[fadeIn_0.5s_ease-out]" id="telemetry-grid">
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center gap-2 hover:border-slate-300 transition-all">
-          <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
-          <span className="text-[10px] sm:text-xs font-mono font-black text-slate-705">MONITORING ACTIVE</span>
+
+      {/* Redesigned Compact System Status Section */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5 text-left" id="telemetry-grid">
+        {/* Perimeter */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-3 flex flex-col justify-between shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">PERIMETER</span>
+            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+          </div>
+          <span className="text-xs font-semibold text-slate-900 mt-1">Armed & Active</span>
         </div>
+
+        {/* GPS */}
         <div 
           onClick={() => {
-            alert(`GPS active telemetry coordinates locked:\nLatitude: ${latitude}\nLongitude: ${longitude}`);
+            showToast(`📍 GPS coordinates locked: ${latitude.toFixed(4)}° N, ${longitude.toFixed(4)}° W`);
           }}
-          className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center gap-2 hover:border-indigo-300 transition-all cursor-pointer"
+          className="bg-white border border-slate-200/80 hover:border-indigo-300 rounded-2xl p-3 flex flex-col justify-between shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all cursor-pointer group"
           id="telemetry-gps"
+          title="Click to view GPS lock"
         >
-          <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
-          <span className="text-[10px] sm:text-xs font-mono font-black text-slate-705 truncate">GPS SYNCED</span>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-indigo-600 transition-colors">GPS</span>
+            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+          </div>
+          <span className="text-xs font-semibold text-slate-900 mt-1 truncate">
+            Connected · {latitude.toFixed(2)}°, {longitude.toFixed(2)}°
+          </span>
         </div>
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center gap-2 hover:border-slate-300 transition-all">
-          <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
-          <span className="text-[10px] sm:text-xs font-mono font-black text-slate-705">GUARDIANS SAFE</span>
+
+        {/* Safety Circle */}
+        <div 
+          onClick={() => setScreen && setScreen('circle')}
+          className="bg-white border border-slate-200/80 hover:border-indigo-300 rounded-2xl p-3 flex flex-col justify-between shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all cursor-pointer group"
+          title="Open Safety Circle"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-indigo-600 transition-colors">SAFETY CIRCLE</span>
+            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+          </div>
+          <span className="text-xs font-semibold text-slate-900 mt-1">
+            {contacts.filter(c => c.online !== false).length || 3} Guardians Online
+          </span>
         </div>
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center gap-2 hover:border-slate-300 transition-all">
-          <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
-          <span className="text-[10px] sm:text-xs font-mono font-black text-slate-705 truncate">STATUS VERIFIED</span>
+
+        {/* AI Status */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-3 flex flex-col justify-between shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">AI STATUS</span>
+            <span className="w-1.5 h-1.5 bg-indigo-500" />
+          </div>
+          <span className="text-xs font-semibold text-indigo-700 mt-1 truncate">
+            {isAiThinking ? 'Analyzing' : isCurrentlySpeaking ? 'Speaking' : isListening ? 'Listening' : 'Ready'}
+          </span>
         </div>
       </div>
 
-      {/* Achyuta Rotating Holographic Core */}
-      <div className="bg-slate-50/55 border border-slate-200/90 rounded-[28px] p-4.5 mb-5 flex flex-col items-center justify-center relative shadow-xs" id="achyuta-hologram-card">
-        <div className="relative w-36 h-36 flex items-center justify-center">
+      {/* Achyuta AI Core Visual */}
+      <div className="bg-white border border-slate-200/80 rounded-3xl p-7 mb-5 flex flex-col items-center justify-center relative shadow-[0_2px_12px_rgba(15,23,42,0.03)]" id="achyuta-hologram-card">
+        <div className="relative w-40 h-40 flex items-center justify-center">
+          {/* Subtle ambient indigo glow */}
+          <div className={`absolute inset-0 rounded-full transition-all duration-700 pointer-events-none ${
+            isCurrentlySpeaking ? 'bg-indigo-500/12 blur-2xl' : isListening ? 'bg-rose-500/12 blur-2xl' : 'bg-indigo-500/5 blur-xl'
+          }`} />
           
-          {/* Concentric rotating glowing aura rings */}
-          <div className={`absolute inset-0 rounded-full border-2 border-indigo-500/15 animate-[spin_12s_linear_infinite] ${isCurrentlySpeaking ? 'border-indigo-400/35 animate-[spin_4s_linear_infinite]' : ''}`} />
-          <div className={`absolute inset-2.5 rounded-full border border-dashed border-purple-500/25 animate-[spin_18s_linear_infinite_reverse] ${isCurrentlySpeaking ? 'border-purple-400/45 animate-[spin_6s_linear_infinite_reverse]' : ''}`} />
-          <div className="absolute inset-4 rounded-full bg-radial-gradient from-indigo-500/5 to-transparent blur-xl animate-pulse" />
-          
-          {/* Floating energy particle nodes */}
-          <div className={`absolute inset-5 rounded-full border border-indigo-300/30 flex items-center justify-center ${isCurrentlySpeaking ? 'scale-105 transition-transform' : ''}`}>
-            <span className="absolute -top-1 w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_#6366f1]" />
-            <span className="absolute -bottom-1.5 w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_#6366f1]" />
+          {/* Outer thin concentric ring with subtle orbital movement */}
+          <div className={`absolute inset-0 rounded-full border border-indigo-200/50 transition-all duration-1000 ${
+            isCurrentlySpeaking ? 'border-indigo-400 scale-105' : 'animate-[spin-slow_45s_linear_infinite]'
+          }`}>
+            <span className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-400/80" />
           </div>
 
-          {/* Holographic core clickable bubble */}
-          <div 
+          {/* Middle thin ring */}
+          <div className="absolute inset-3.5 rounded-full border border-slate-200/80" />
+
+          {/* Inner soft accent ring */}
+          <div className="absolute inset-7 rounded-full border border-indigo-100/70" />
+
+          {/* Interactive Core button */}
+          <button 
+            type="button"
             onClick={toggleListening}
-            className={`w-20 h-20 rounded-full bg-linear-to-tr from-indigo-600 via-purple-600 to-indigo-500 flex flex-col items-center justify-center cursor-pointer relative z-10 transition-all duration-305 shadow-[0_0_22px_rgba(99,102,241,0.45)] group hover:scale-105 active:scale-95 ${
+            className={`w-20 h-20 rounded-full flex flex-col items-center justify-center cursor-pointer relative z-10 transition-all duration-300 group ${
               isCurrentlySpeaking 
-                ? 'shadow-[0_0_35px_rgba(168,85,247,0.75)] scale-105 ring-4 ring-indigo-400/20' 
+                ? 'bg-gradient-to-b from-indigo-500 to-indigo-700 text-white shadow-[0_10px_25px_rgba(79,70,229,0.3)] scale-105' 
                 : isListening 
-                ? 'shadow-[0_0_35px_rgba(239,68,68,0.7)] from-red-650 via-rose-600 to-red-500 animate-pulse'
-                : ''
+                ? 'bg-gradient-to-b from-rose-500 to-rose-600 text-white shadow-[0_10px_25px_rgba(225,29,72,0.3)] animate-pulse'
+                : 'bg-gradient-to-b from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white shadow-[0_8px_20px_rgba(79,70,229,0.22)] active:scale-95'
             }`}
             id="achyuta-hologram-bubble"
+            title={isListening ? "Listening - tap to stop" : "Tap to speak with Achyuta"}
           >
-            <BrainCircuit className={`w-8 h-8 text-white ${isCurrentlySpeaking || isListening ? 'animate-pulse' : ''}`} />
-            
-            {/* Pulsing expander wave rings */}
-            {isCurrentlySpeaking && (
-              <span className="absolute inset-0 rounded-full border-4 border-purple-400 animate-[ping_1.5s_infinite] opacity-40 pointer-events-none" />
-            )}
-          </div>
-
-          {/* Outer SVG futuristic guidelines */}
-          <svg className={`absolute inset-0 w-full h-full pointer-events-none animate-[spin_30s_linear_infinite] ${isCurrentlySpeaking ? 'animate-[spin_9s_linear_infinite]' : ''}`} viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="1 8" className="text-indigo-400/30" />
-            <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="0.75" strokeDasharray="11 12" className="text-purple-400/15" />
-          </svg>
+            <BrainCircuit className="w-8 h-8 text-white/95" />
+          </button>
         </div>
 
-        {/* Action subtitle */}
-        <div className="mt-4 flex flex-col items-center text-center space-y-1 z-10">
-          <p className={`text-[9px] font-mono font-black tracking-widest uppercase transition-colors ${
+        {/* Action state label and waveform */}
+        <div className="mt-4 flex flex-col items-center text-center space-y-1.5 z-10">
+          <p className={`text-xs font-bold tracking-wider uppercase font-sans transition-colors ${
             isListening 
-              ? 'text-red-550 animate-pulse' 
+              ? 'text-rose-600' 
               : isCurrentlySpeaking 
-              ? 'text-purple-600 font-bold' 
-              : 'text-indigo-600 font-bold'
+              ? 'text-indigo-700' 
+              : 'text-slate-700'
           }`} id="core-state-tag">
-            {isListening ? '🎙️ SCANNING VOX DIRECT INPUT' : isCurrentlySpeaking ? '📢 ACHYUTA TRANSMITTING AUDIO' : '🛡️ CORE DIALOG STABLE'}
+            {isListening ? 'LISTENING' : isCurrentlySpeaking ? 'ACHYUTA IS SPEAKING' : 'READY TO ASSIST'}
           </p>
           
           <div className="h-4 flex items-center justify-center">
             {isCurrentlySpeaking ? (
-              <div className="flex gap-0.5 items-end h-3">
-                {[1.4, 0.6, 1.8, 1.1, 0.7, 1.5, 0.9, 1.2, 0.5, 1.6].map((multiplier, idx) => (
+              <div className="flex gap-1 items-end h-3">
+                {[40, 85, 60, 100, 75, 45, 90, 55].map((heightPct, idx) => (
                   <span 
                     key={idx} 
-                    className="w-0.5 bg-purple-500 rounded-full animate-wave-bar" 
+                    className="w-0.5 bg-indigo-600 rounded-full animate-wave-bar" 
                     style={{ 
-                      height: `${multiplier * 100}%`,
+                      height: `${heightPct}%`,
                       animationDelay: `${idx * 0.08}s` 
                     }} 
                   />
                 ))}
               </div>
             ) : isListening ? (
-              <div className="flex gap-1 items-center h-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-                <span className="text-[9px] font-mono text-slate-400 font-bold">DIGITIZING AUDIO STREAM...</span>
+              <div className="flex gap-1.5 items-center h-3">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                <span className="text-[11px] text-slate-500 font-medium">Recording voice input...</span>
               </div>
             ) : (
-              <p className="text-[9px] font-mono font-bold text-slate-400 opacity-70 tracking-wider uppercase">
-                Tap biometric core for tactile conversation
+              <p className="text-[11px] text-slate-400 font-medium">
+                Tap core to speak or type inquiry below
               </p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Memory System Dashboard Alert Banner */}
-      <div className="bg-indigo-50/50 border border-indigo-150/70 rounded-2xl p-4.5 mb-5 text-left flex gap-3 shadow-2xs items-start" id="memory-system-card">
-        <Info className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-        <p className="text-xs text-slate-700 leading-normal font-sans font-semibold">
-          Welcome back, <span className="font-bold text-indigo-950 font-sans">{ownerName}</span>. Your circle guardians are verified online, and your next routine safety check-in is due in <span className="text-indigo-600 font-bold">23 hours</span>. All telemetry signals are operational.
-        </p>
+      {/* Welcome / Safety Summary */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 mb-5 text-left shadow-[0_2px_8px_rgba(15,23,42,0.03)]" id="memory-system-card">
+        <div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 font-sans block mb-1">
+            GOOD {new Date().getHours() < 12 ? 'MORNING' : new Date().getHours() < 17 ? 'AFTERNOON' : 'EVENING'}, {ownerName.toUpperCase()}
+          </span>
+          <h2 className="text-base font-bold text-slate-900 font-sans tracking-tight">
+            Your safety network is active.
+          </h2>
+          <p className="text-xs text-slate-500 mt-1 font-sans leading-relaxed">
+            Perimeter sensors are operational. Location coordinates encrypted and ready for instant emergency dispatch.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 mt-4 pt-3.5 border-t border-slate-100 text-left">
+          <div>
+            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide block">Next Check-In</span>
+            <span className="text-xs font-semibold text-slate-800 mt-0.5 block">23h remaining</span>
+          </div>
+          <div>
+            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide block">Safety Circle</span>
+            <span className="text-xs font-semibold text-emerald-700 mt-0.5 block">{contacts.filter(c => c.online !== false).length || 3} guardians online</span>
+          </div>
+          <div>
+            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide block">GPS Link</span>
+            <span className="text-xs font-semibold text-indigo-700 mt-0.5 block">GPS connected</span>
+          </div>
+        </div>
       </div>
 
-      {/* Smart Command Grid (No-typing targets) */}
+      {/* Quick Safety Actions */}
       <div className="mb-5 text-left" id="commands-section">
-        <p className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-widest mb-2.5 px-0.5">
-          Tactical Commands & Operations
-        </p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex items-center justify-between mb-2.5 px-0.5">
+          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+            QUICK SAFETY ACTIONS
+          </h3>
+          <span className="text-[11px] text-slate-400">One-touch protocols</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          {/* Check My Safety */}
           <button 
             type="button"
             onClick={() => handleSmartCommand('safety_check')}
-            className="h-14 bg-white hover:bg-slate-50 text-slate-800 text-left border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 flex items-center justify-between transition-all active:scale-95 shadow-2xs cursor-pointer"
+            className="bg-white hover:bg-slate-50/80 border border-slate-200/90 rounded-2xl p-3.5 text-left transition-all shadow-2xs hover:shadow-xs active:scale-[0.98] cursor-pointer group flex flex-col justify-between h-[84px]"
             id="cmd-safety-check"
           >
-            <div className="flex flex-col text-left min-w-0">
-              <span className="text-[10px] font-mono font-black text-indigo-600 uppercase tracking-wider">01. BIOMETRICS</span>
-              <span className="text-[11px] font-bold text-slate-700 truncate font-sans">Check My Safety</span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">Check My Safety</span>
+              <div className="w-7 h-7 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
             </div>
-            <span className="text-sm">🛡️</span>
+            <p className="text-[10.5px] text-slate-500 line-clamp-1">Verify perimeter & device telemetry</p>
           </button>
 
+          {/* Alert Safety Circle */}
           <button 
             type="button"
             onClick={() => handleSmartCommand('contact_guardians')}
-            className="h-14 bg-white hover:bg-slate-50 text-slate-800 text-left border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 flex items-center justify-between transition-all active:scale-95 shadow-2xs cursor-pointer"
+            className="bg-white hover:bg-slate-50/80 border border-slate-200/90 rounded-2xl p-3.5 text-left transition-all shadow-2xs hover:shadow-xs active:scale-[0.98] cursor-pointer group flex flex-col justify-between h-[84px]"
             id="cmd-contact-guardians"
           >
-            <div className="flex flex-col text-left min-w-0">
-              <span className="text-[10px] font-mono font-black text-indigo-600 uppercase tracking-wider">02. SMS BROADCAST</span>
-              <span className="text-[11px] font-bold text-slate-700 truncate font-sans">Contact Guardians</span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">Alert Safety Circle</span>
+              <div className="w-7 h-7 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                <Users className="w-4 h-4" />
+              </div>
             </div>
-            <span className="text-sm">👨‍👩‍👧</span>
+            <p className="text-[10.5px] text-slate-500 line-clamp-1">Broadcast status to trusted contacts</p>
           </button>
 
+          {/* Open SOS */}
           <button 
             type="button"
             onClick={() => handleSmartCommand('SOS')}
-            className="h-14 bg-red-50 hover:bg-red-100 text-red-900 text-left border border-red-200 hover:border-red-300 rounded-xl px-3.5 flex items-center justify-between transition-all active:scale-95 shadow-2xs cursor-pointer"
+            className="bg-rose-50/70 hover:bg-rose-50 border border-rose-200 rounded-2xl p-3.5 text-left transition-all shadow-2xs hover:shadow-xs active:scale-[0.98] cursor-pointer group flex flex-col justify-between h-[84px]"
             id="cmd-sos-trigger"
           >
-            <div className="flex flex-col text-left min-w-0">
-              <span className="text-[10px] font-mono font-black text-red-650 uppercase tracking-wider">03. PANIC BEACON</span>
-              <span className="text-[11px] font-extrabold text-red-700 truncate font-sans font-semibold">Open SOS Overlay</span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-rose-700">Open SOS Beacon</span>
+              <div className="w-7 h-7 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                <Siren className="w-4 h-4" />
+              </div>
             </div>
-            <span className="text-sm animate-pulse">🚨</span>
+            <p className="text-[10.5px] text-rose-700/80 line-clamp-1">Immediate high-priority escalation</p>
           </button>
 
+          {/* Find Nearby Help */}
           <button 
             type="button"
             onClick={() => handleSmartCommand('find_help')}
-            className="h-14 bg-white hover:bg-slate-50 text-slate-800 text-left border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 flex items-center justify-between transition-all active:scale-95 shadow-2xs cursor-pointer"
+            className="bg-white hover:bg-slate-50/80 border border-slate-200/90 rounded-2xl p-3.5 text-left transition-all shadow-2xs hover:shadow-xs active:scale-[0.98] cursor-pointer group flex flex-col justify-between h-[84px]"
             id="cmd-find-help"
           >
-            <div className="flex flex-col text-left min-w-0">
-              <span className="text-[10px] font-mono font-black text-indigo-600 uppercase tracking-wider">04. GPS OVERLAY</span>
-              <span className="text-[11px] font-bold text-slate-700 truncate font-sans">Find Nearby Help</span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">Find Nearby Help</span>
+              <div className="w-7 h-7 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                <Navigation className="w-4 h-4" />
+              </div>
             </div>
-            <span className="text-sm">🏥</span>
+            <p className="text-[10.5px] text-slate-500 line-clamp-1">Locate medical & emergency centers</p>
           </button>
 
+          {/* Explain ENDLIF */}
           <button 
             type="button"
             onClick={() => handleSmartCommand('explain_endlif')}
-            className="h-14 bg-white hover:bg-slate-50 text-slate-800 text-left border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 flex items-center justify-between transition-all active:scale-95 shadow-2xs cursor-pointer"
+            className="bg-white hover:bg-slate-50/80 border border-slate-200/90 rounded-2xl p-3.5 text-left transition-all shadow-2xs hover:shadow-xs active:scale-[0.98] cursor-pointer group flex flex-col justify-between h-[84px]"
             id="cmd-explain-endlif"
           >
-            <div className="flex flex-col text-left min-w-0">
-              <span className="text-[10px] font-mono font-black text-indigo-600 uppercase tracking-wider">05. ECOSYSTEM</span>
-              <span className="text-[11px] font-bold text-slate-700 truncate font-sans">Explain ENDLIF</span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">Explain ENDLIF</span>
+              <div className="w-7 h-7 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                <Shield className="w-4 h-4" />
+              </div>
             </div>
-            <span className="text-sm">📡</span>
+            <p className="text-[10.5px] text-slate-500 line-clamp-1">Overview of protective safeguards</p>
           </button>
 
+          {/* Report Emergency */}
           <button 
             type="button"
             onClick={() => {
               setEmergencyActive(true);
-              speakVoiceText("Emergency override deployed. Large format tactical dialer loaded.", "emergency_btn_alert");
+              speakVoiceText("Emergency override deployed. Emergency rescue panel loaded.", "emergency_btn_alert");
             }}
-            className="h-14 bg-rose-600 hover:bg-rose-500 text-white text-left rounded-xl px-3.5 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer animate-[pulse_2s_infinite]"
+            className="bg-rose-600 hover:bg-rose-700 text-white rounded-2xl p-3.5 text-left transition-all shadow-sm hover:shadow-md active:scale-[0.98] cursor-pointer flex flex-col justify-between h-[84px]"
             id="cmd-report-emergency"
           >
-            <div className="flex flex-col text-left min-w-0">
-              <span className="text-[10px] font-mono font-black text-rose-105 uppercase tracking-wider block">06. IMMEDIATE LIFE</span>
-              <span className="text-[11.5px] font-black uppercase tracking-wide truncate font-sans text-white">Report Emergency</span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white">Report Emergency</span>
+              <div className="w-7 h-7 rounded-xl bg-white/20 text-white flex items-center justify-center shrink-0">
+                <PhoneCall className="w-4 h-4" />
+              </div>
             </div>
-            <span className="text-sm">⚠️</span>
+            <p className="text-[10.5px] text-rose-100 line-clamp-1">One-touch direct rescue targets</p>
           </button>
         </div>
       </div>
 
-      {/* Cybernetic Secure Log Feed Container */}
-      <div className="flex flex-col space-y-4" id="chat-feed-box-wrapper">
-        <div className="flex items-center justify-between bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
-          <div className="flex items-center gap-1.5 pl-1.5">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider animate-none">Secure Communication Stream</span>
+      {/* AI Conversation Stream */}
+      <div className="flex flex-col space-y-3.5" id="chat-feed-box-wrapper">
+        <div className="flex items-center justify-between bg-white border border-slate-200/90 px-3.5 py-2.5 rounded-2xl shadow-2xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shrink-0" />
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider font-sans">Achyuta Conversation</span>
           </div>
 
           {isCurrentlySpeaking ? (
             <button 
               onClick={stopVoice}
-              className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-150 rounded-lg text-rose-600 text-[10px] font-black uppercase tracking-wider animate-pulse hover:bg-rose-100 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold hover:bg-rose-100 transition-colors cursor-pointer"
             >
-              <VolumeX className="w-3.5 h-3.5" /> Stop Speech
+              <VolumeX className="w-3.5 h-3.5" />
+              <span>Stop Voice</span>
             </button>
           ) : (
-            <span className="text-[10px] text-indigo-600 font-extrabold uppercase tracking-wider pr-1">Achyuta Telemetry Feed</span>
+            <span className="text-[11px] text-slate-400 font-medium">Encrypted & Grounded</span>
           )}
         </div>
 
+        {/* Active Safety Verification Countdown Banner */}
+        {safetyTimerSeconds !== null && (
+          <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs ${
+            timerAlertRaised 
+              ? 'bg-rose-50 border-rose-300 text-rose-950'
+              : 'bg-amber-50/70 border-amber-200/90 text-amber-950'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-xl shrink-0 ${timerAlertRaised ? 'bg-rose-600 text-white' : 'bg-amber-500 text-white'}`}>
+                <Timer className="w-5 h-5" />
+              </div>
+              <div className="text-left">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-xs sm:text-sm tracking-tight text-slate-900">
+                    {timerAlertRaised ? 'Safety Check-In Window Expired' : 'Safety Verification Timer Active'}
+                  </span>
+                  <span className="font-mono font-bold text-xs text-amber-800 bg-white px-2 py-0.5 rounded-md border border-amber-200/80 shadow-2xs">
+                    {Math.floor(safetyTimerSeconds / 60)}:{(safetyTimerSeconds % 60).toString().padStart(2, '0')}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5 font-sans leading-normal">
+                  {timerAlertRaised 
+                    ? `Guardians are being alerted with your live location coordinates.`
+                    : 'Confirm safe arrival before the countdown completes.'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={confirmSafetyCheckIn}
+                className="flex-1 sm:flex-none px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>I Am Safe</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => extendSafetyTimer(10)}
+                className="px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl shadow-2xs transition-all cursor-pointer active:scale-95"
+              >
+                +10m
+              </button>
+              <button
+                type="button"
+                onClick={cancelSafetyTimer}
+                className="p-2 hover:bg-slate-100 text-slate-500 rounded-xl transition-all cursor-pointer"
+                title="Cancel Timer"
+                aria-label="Cancel timer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Chat space */}
-        <div className="flex-1 overflow-y-auto space-y-4 max-h-[380px] p-4 bg-slate-50/50 border border-slate-200 rounded-[24px] shadow-inner hide-scrollbar">
+        <div className="flex-1 overflow-y-auto space-y-4 max-h-[440px] p-4 bg-slate-50/70 border border-slate-200/80 rounded-3xl shadow-inner hide-scrollbar">
               {messages.map((msg) => {
                 const isAssistant = msg.sender === 'assistant';
                 const isSpeakingThis = activeSpeakingMsgId === msg.id;
@@ -1510,27 +1894,118 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
                     className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div 
-                      className={`max-w-[90%] rounded-[20px] p-4 text-xs sm:text-sm leading-relaxed shadow-xs relative group ${
+                      className={`max-w-[92%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed shadow-xs relative group ${
                         msg.sender === 'user' 
-                          ? 'bg-indigo-600 text-white rounded-br-none' 
-                          : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none'
+                          ? 'bg-indigo-600 text-white rounded-br-sm shadow-[0_2px_8px_rgba(79,70,229,0.2)]' 
+                          : msg.safetyLevel === 'critical'
+                          ? 'bg-white border-2 border-rose-300 text-slate-800 rounded-bl-sm shadow-[0_4px_16px_rgba(244,63,94,0.08)]'
+                          : msg.safetyLevel === 'warning'
+                          ? 'bg-white border-2 border-amber-300 text-slate-800 rounded-bl-sm shadow-[0_4px_16px_rgba(245,158,11,0.08)]'
+                          : 'bg-white border border-slate-200/90 text-slate-800 rounded-bl-sm shadow-[0_2px_8px_rgba(15,23,42,0.03)]'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-3 mb-1.5 opacity-80 text-[10px] font-mono">
+                      <div className="flex items-center justify-between gap-3 mb-2 opacity-80 text-[10.5px]">
                         <div className="flex items-center gap-1.5">
                           {isAssistant ? (
-                            <BrainCircuit className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />
+                            <BrainCircuit className="w-3.5 h-3.5 text-indigo-600" />
                           ) : (
                             <ShieldCheck className="w-3.5 h-3.5 text-indigo-200" />
                           )}
-                          <span className={msg.sender === 'user' ? 'text-indigo-100 font-bold' : 'text-slate-500 font-bold'}>
-                            {msg.sender === 'user' ? 'You' : 'Achyuta'}
+                          <span className={msg.sender === 'user' ? 'text-indigo-100 font-bold' : 'text-slate-600 font-bold'}>
+                            {msg.sender === 'user' ? 'You' : 'Achyuta AI'}
                           </span>
                         </div>
-                        <span>{msg.timestamp}</span>
+                        <span className="font-mono text-[10px] opacity-75">{msg.timestamp}</span>
                       </div>
 
-                      <p className="font-medium whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                      {/* Dedicated Safety Alert Card */}
+                      {isAssistant && (msg.safetyLevel === 'critical' || msg.safetyLevel === 'warning') && (
+                        <div className="mb-3.5 p-3.5 bg-rose-50/90 border border-rose-200/90 rounded-2xl text-left">
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <div className="flex items-center gap-1.5 text-rose-700 font-bold text-xs uppercase tracking-wide font-sans">
+                              <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+                              <span>SAFETY ALERT</span>
+                            </div>
+                            {msg.model && (
+                              <span className="text-[9px] font-mono font-medium text-rose-600/80 px-1.5 py-0.5 rounded bg-white/90">
+                                {msg.model}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs font-bold text-rose-950 font-sans">
+                            Potential threat detected.
+                          </p>
+                          {msg.tacticalSummary && (
+                            <p className="text-[11px] text-rose-900/90 mt-1 font-medium font-sans">
+                              <span className="font-bold text-rose-950">Directive:</span> {msg.tacticalSummary}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Directive banner for non-emergency assistant messages */}
+                      {isAssistant && msg.tacticalSummary && msg.safetyLevel !== 'critical' && msg.safetyLevel !== 'warning' && (
+                        <div className="mb-2.5 text-[11px] font-medium text-slate-700 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                          <span className="text-amber-500 font-bold">⚡</span>
+                          <span><strong className="text-slate-900">Directive:</strong> {msg.tacticalSummary}</span>
+                        </div>
+                      )}
+
+                      {/* Search Grounding Verified Badge & Sources */}
+                      {isAssistant && msg.isSearchGrounded && (
+                        <div className="mb-3 p-2.5 bg-blue-50/80 border border-blue-200/90 rounded-xl text-left">
+                          <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                            <div className="flex items-center gap-1.5 text-blue-900 font-bold text-[11px]">
+                              <Globe className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                              <span>Verified Search Grounding</span>
+                            </div>
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100/90 text-blue-800 font-bold uppercase tracking-wider">
+                              Real-Time Web Intel
+                            </span>
+                          </div>
+
+                          {msg.groundingQueries && msg.groundingQueries.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-2">
+                              {msg.groundingQueries.map((q, qIdx) => (
+                                <span key={qIdx} className="text-[9.5px] font-mono bg-white text-blue-900 border border-blue-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-2xs">
+                                  <span className="text-blue-500">🔍</span> {q}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {msg.groundingSources && msg.groundingSources.length > 0 && (
+                            <div className="space-y-1 pt-1 border-t border-blue-200/50">
+                              <p className="text-[9px] font-mono font-bold text-slate-500 uppercase">
+                                Verified Sources ({msg.groundingSources.length}):
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {msg.groundingSources.map((src, sIdx) => (
+                                  <a
+                                    key={sIdx}
+                                    href={src.uri}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-white hover:bg-blue-50 border border-blue-200 rounded-lg text-[10px] text-blue-700 font-semibold transition-all hover:scale-102 shadow-2xs"
+                                  >
+                                    <ExternalLink className="w-2.5 h-2.5 text-blue-500 shrink-0" />
+                                    <span className="truncate max-w-[140px]">{src.title || "Web Reference"}</span>
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Message Body with Markdown formatting for assistant */}
+                      {isAssistant ? (
+                        <div className="font-medium leading-relaxed prose prose-sm max-w-none text-slate-800 [&_h3]:text-xs sm:[&_h3]:text-sm [&_h3]:font-black [&_h3]:mb-1 [&_h3]:mt-2 [&_p]:mb-1.5 [&_ul]:mb-1.5 [&_li]:mb-0.5 [&_ol]:mb-1.5">
+                          <ReactMarkdown>{msg.text}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="font-medium whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                      )}
 
                       {/* Render nested hospital interactive cards */}
                       {msg.hospitals && msg.hospitals.length > 0 && (
@@ -1728,6 +2203,55 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
                         </div>
                       )}
 
+                      {/* Interactive Endlif Action Chips */}
+                      {isAssistant && msg.actions && msg.actions.length > 0 && (
+                        <div className="mt-4 pt-3.5 border-t border-slate-100">
+                          <div className="flex items-center gap-1.5 mb-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider font-sans">
+                            <Zap className="w-3.5 h-3.5 text-amber-500" />
+                            <span>Recommended actions</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {msg.actions.map((act) => {
+                              const isSos = act.type === 'sos';
+                              const isTimer = act.type === 'timer';
+                              const isCall = act.type === 'call';
+                              
+                              let chipClass = 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200 font-medium';
+                              let IconComponent = Shield;
+
+                              if (isSos) {
+                                chipClass = 'bg-rose-600 hover:bg-rose-700 text-white border-rose-600 shadow-[0_2px_8px_rgba(225,29,72,0.25)] font-bold active:scale-95';
+                                IconComponent = Siren;
+                              } else if (isTimer) {
+                                chipClass = 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500 shadow-[0_2px_8px_rgba(245,158,11,0.25)] font-bold active:scale-95';
+                                IconComponent = Timer;
+                              } else if (isCall) {
+                                chipClass = 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-[0_2px_8px_rgba(5,150,105,0.25)] font-bold active:scale-95';
+                                IconComponent = PhoneCall;
+                              } else if (act.type === 'navigate') {
+                                chipClass = 'bg-slate-900 hover:bg-slate-800 text-white border-slate-900 font-bold active:scale-95';
+                                IconComponent = ChevronRight;
+                              } else if (act.type === 'covert') {
+                                chipClass = 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 font-bold active:scale-95';
+                                IconComponent = Lock;
+                              }
+
+                              return (
+                                <button
+                                  key={act.id}
+                                  type="button"
+                                  onClick={() => handleActionClick(act)}
+                                  className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs border transition-all cursor-pointer ${chipClass}`}
+                                >
+                                  <IconComponent className="w-3.5 h-3.5 shrink-0" />
+                                  <span>{act.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Speaking indicator and manual vocal replay button inside message */}
                       {isAssistant && (
                         <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
@@ -1761,7 +2285,7 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
 
               {isAiThinking && (
                 <div className="flex justify-start">
-                  <div className="max-w-[85%] bg-white border border-slate-200 rounded-[20px] rounded-bl-none p-4 text-xs font-mono text-slate-500">
+                  <div className="max-w-[85%] bg-white border border-slate-200/90 rounded-2xl rounded-bl-sm p-4 text-xs font-sans text-slate-500 shadow-xs">
                     <div className="flex items-center gap-2">
                       <Bot className="w-4 h-4 text-indigo-600 animate-spin" />
                       <span>Formulating secure telemetry checkup...</span>
@@ -1779,52 +2303,52 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className={`border rounded-[22px] p-4 text-left shadow-sm space-y-3 ${
+                  className={`border rounded-2xl p-4 text-left shadow-xs space-y-3 ${
                     activeProtocol.threatLevel === 'critical'
-                      ? 'bg-rose-50 border-rose-200 text-rose-900'
+                      ? 'bg-rose-50/90 border-rose-200 text-rose-900'
                       : activeProtocol.threatLevel === 'warning'
-                      ? 'bg-amber-50/70 border-amber-200 text-amber-900'
+                      ? 'bg-amber-50/80 border-amber-200 text-amber-900'
                       : activeProtocol.threatLevel === 'caution'
-                      ? 'bg-yellow-50/50 border-yellow-250 text-slate-800'
-                      : 'bg-indigo-50/30 border-indigo-150 text-slate-800'
+                      ? 'bg-yellow-50/60 border-yellow-200 text-slate-800'
+                      : 'bg-indigo-50/40 border-indigo-150 text-slate-800'
                   }`}
                 >
-                  <div className="flex items-center justify-between border-b border-slate-200/50 pb-2">
-                    <div className="flex items-center gap-1.5 font-sans font-black text-xs uppercase tracking-wider">
+                  <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+                    <div className="flex items-center gap-2 font-sans font-bold text-xs uppercase tracking-wider">
                       {activeProtocol.threatLevel === 'critical' ? (
-                        <Shield className="w-4 h-4 text-red-600 animate-[bounce_2s_infinite]" />
+                        <ShieldAlert className="w-4 h-4 text-rose-600 animate-pulse" />
                       ) : (
                         <ShieldCheck className="w-4 h-4 text-indigo-600" />
                       )}
                       <span>{activeProtocol.protocolName}</span>
                     </div>
-                    <span className={`text-[9px] px-2 py-0.5 rounded font-mono font-black uppercase ${
+                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold uppercase tracking-wider ${
                       activeProtocol.threatLevel === 'critical'
-                        ? 'bg-red-500 text-white'
+                        ? 'bg-rose-600 text-white'
                         : activeProtocol.threatLevel === 'warning'
                         ? 'bg-amber-500 text-white'
                         : activeProtocol.threatLevel === 'caution'
-                        ? 'bg-yellow-400 text-slate-900'
+                        ? 'bg-amber-100 text-amber-900 border border-amber-200'
                         : 'bg-indigo-100 text-indigo-800'
                     }`}>
-                      THREAT STATUS: {activeProtocol.threatLevel}
+                      Status: {activeProtocol.threatLevel}
                     </span>
                   </div>
 
-                  <p className="text-xs leading-relaxed font-semibold">
+                  <p className="text-xs leading-relaxed font-medium">
                     {activeProtocol.explanation}
                   </p>
 
-                  <div className="space-y-1.5">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                  <div className="space-y-1.5 pt-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                       Active Automation Checklist
                     </p>
                     {activeProtocol.actions.map((act, index) => (
                       <div key={index} className="flex items-start gap-2 text-xs">
-                        <div className="w-4 h-4 bg-white/85 rounded-full border border-slate-200 flex items-center justify-center shrink-0 mt-0.5">
-                          <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                        <div className="w-4 h-4 bg-white rounded-full border border-slate-200 flex items-center justify-center shrink-0 mt-0.5">
+                          <Check className="w-3 h-3 text-emerald-600 stroke-[2.5]" />
                         </div>
-                        <span className="text-[11px] leading-snug text-slate-700 font-mono">{act}</span>
+                        <span className="text-[11px] leading-snug text-slate-700 font-sans">{act}</span>
                       </div>
                     ))}
                   </div>
@@ -1833,12 +2357,12 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
             </AnimatePresence>
 
             {/* Input field suggestions */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1 hide-scrollbar">
+            <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
               {SUGGESTED_ASSISTANT_PROMPTS.map((prompt) => (
                 <button 
                   key={prompt}
                   onClick={() => handleAiResponse(prompt)}
-                  className="bg-white hover:bg-slate-50 shrink-0 border border-slate-200 text-slate-700 px-3.5 py-1.5 rounded-full text-xs font-bold font-sans cursor-pointer transition-all"
+                  className="bg-white hover:bg-slate-50 shrink-0 border border-slate-200 text-slate-700 px-3.5 py-1.5 rounded-full text-xs font-medium font-sans cursor-pointer transition-all shadow-2xs hover:border-slate-300"
                 >
                   {prompt}
                 </button>
@@ -1851,20 +2375,20 @@ When you fail to confirm your safety, ENDLIF automatically alerts selected guard
                 e.preventDefault();
                 handleAiResponse(typedMessage);
               }}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 bg-white border border-slate-200/90 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/10 rounded-2xl p-1.5 shadow-[0_2px_8px_rgba(15,23,42,0.03)] transition-all"
             >
               <input 
                 type="text"
-                placeholder="Talk with Achyuta (Super Intelligent AI)..."
+                placeholder="Ask Achyuta Safety Intelligence..."
                 value={typedMessage}
                 disabled={isAiThinking}
                 onChange={(e) => setTypedMessage(e.target.value)}
-                className="flex-1 bg-white border border-slate-200 focus:border-indigo-500 rounded-xl px-4 py-3.5 outline-none text-slate-800 text-xs sm:text-sm disabled:opacity-50"
+                className="flex-1 bg-transparent px-3 py-2 outline-none text-slate-800 text-xs sm:text-sm disabled:opacity-50 placeholder:text-slate-400"
               />
               <button 
                 type="submit"
                 disabled={!typedMessage.trim() || isAiThinking}
-                className="w-12 h-12 shrink-0 bg-indigo-600 text-white rounded-xl hover:bg-indigo-550 active:scale-95 disabled:opacity-40 transition-all flex items-center justify-center cursor-pointer outline-none shadow-sm"
+                className="w-10 h-10 shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl active:scale-95 disabled:opacity-40 transition-all flex items-center justify-center cursor-pointer outline-none shadow-xs"
               >
                 <SendHorizontal className="w-4 h-4" />
               </button>

@@ -122,7 +122,8 @@ export interface SecurityAuditResult {
 export interface IntruderLog {
   id: string;
   timestamp: string;
-  pinEntered: string;
+  attemptDetails?: string;
+  pinEntered?: string;
   coords: { lat: number; lng: number };
   snapshotUrl?: string; // Simulated snapshot vector frame
 }
@@ -162,16 +163,16 @@ export function performSandboxAudit(): SecurityAuditResult[] {
     remedy: suspiciousScripts.length > 0 ? "Purge all third-party browser plugins and reload a secure virtual frame." : undefined
   });
 
-  // Check 3: Lock-gate Credentials setting state
-  const isPinEnabled = localStorage.getItem('endlif_pin_lock_enabled') === 'true';
+  // Check 3: Profile Data & Storage Security state
+  const isCryptoShield = SecureStorage.isCryptoShieldActive();
   results.push({
-    title: "Tactical Vault Lock Gate",
+    title: "Profile Data & Vault Security",
     category: "Intruder Guard",
-    status: isPinEnabled ? "passed" : "warning",
-    details: isPinEnabled
-      ? "Vault locks active. App locks down immediately when left idle or backgrounded, requiring a biometric scan or 4-digit security code."
-      : "The application is currently unlocked, enabling anyone who physically holding the mobile device to read your safety coordinates.",
-    remedy: "Enable 'Vault Unlock Gate Pin' of 4-digits to secure app entries."
+    status: isCryptoShield ? "passed" : "warning",
+    details: isCryptoShield
+      ? "Profile data and session records are securely protected with encrypted local vault storage."
+      : "Active session records are stored in standard mode. Enable Storage Scrambler for cryptographic obfuscation.",
+    remedy: isCryptoShield ? undefined : "Enable 'Storage Scrambler' in Security Controls to obfuscate safety data."
   });
 
   // Check 4: Host sandbox environment checks 

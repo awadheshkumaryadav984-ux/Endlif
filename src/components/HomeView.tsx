@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
+  Shield,
   ShieldCheck, 
   ChevronRight, 
   Timer, 
@@ -13,10 +14,30 @@ import {
   Eye, 
   Cpu, 
   Smartphone,
-  Award
+  Award,
+  Bell,
+  Mail,
+  PhoneCall,
+  MessageSquare,
+  AlertTriangle,
+  History,
+  CheckCircle2,
+  XCircle,
+  RefreshCw,
+  BrainCircuit,
+  Siren
 } from 'lucide-react';
-import { Screen, Contact } from '../types';
+import { Screen, Contact, EmergencySafetyAlert, RecipientDeliveryRecord, AuditLogEntry } from '../types';
 import { SecureStorage } from '../utils/security';
+import { DailyCheckInManager, CheckInState, CheckInThreshold } from '../services/DailyCheckInManager';
+import { EmergencyAlertManager } from '../services/EmergencyAlertManager';
+import { SafetyCircleManager } from '../services/SafetyCircleManager';
+import { NotificationManager } from '../services/NotificationManager';
+import { SMSFallbackService } from '../services/SMSFallbackService';
+import { EmailFallbackService } from '../services/EmailFallbackService';
+import { LocationService } from '../services/LocationService';
+import { AlertAuditLogger } from '../services/AlertAuditLogger';
+import { formatForDisplay, maskPhoneNumber } from '../services/phoneUtils';
 
 interface HomeViewProps {
   setScreen: (screen: Screen) => void;
@@ -43,18 +64,18 @@ export default function HomeView({
   const [isHolding, setIsHolding] = useState(false);
   const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Missed Safety Check-In Alert state
-  const [threshold, setThreshold] = useState<number>(() => {
-    const saved = SecureStorage.getItem('endlif_checkin_threshold');
-    return saved ? parseInt(saved, 10) : 2; // Default to 2 days
-  });
-
-  const [lastCheckInTimestamp, setLastCheckInTimestamp] = useState<string | null>(() => {
-    return SecureStorage.getItem('endlif_last_safe_confirm_timestamp');
-  });
-
+  // Missed Safety Check-In Alert state powered by DailyCheckInManager & EmergencyAlertManager
+  const [checkInState, setCheckInState] = useState<CheckInState>(() => DailyCheckInManager.getState());
+  const [activeAlert, setActiveAlert] = useState<EmergencySafetyAlert | null>(() => EmergencyAlertManager.getCurrentAlert());
   const [showSimulator, setShowSimulator] = useState(false);
   const [isAlertExpanded, setIsAlertExpanded] = useState(false);
+  const [showAuditLogs, setShowAuditLogs] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => AlertAuditLogger.getLogs());
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [activeContacts, setActiveContacts] = useState<Contact[]>(() => {
+    const list = SafetyCircleManager.getContacts();
+    return list.length > 0 ? list : contacts;
+  });
 
   // Real-time ticking clock for high-stakes futuristic status monitoring
   useEffect(() => {
@@ -67,15 +88,29 @@ export default function HomeView({
     return () => clearInterval(clockTimer);
   }, []);
 
-  // Check once-a-day "I'm Safe" lock constraint + sync check-in timestamp
+  // Listen to centralized check-in, alert, and circle state changes
   useEffect(() => {
-    const todayStr = new Date().toDateString();
-    const savedDate = localStorage.getItem('endlif_last_safe_confirm_date');
-    if (savedDate === todayStr) {
-      setIsSafeConfirmed(true);
-    } else {
-      setIsSafeConfirmed(false);
-    }
+    const syncState = () => {
+      const state = DailyCheckInManager.getState();
+      setCheckInState(state);
+      setActiveAlert(EmergencyAlertManager.getCurrentAlert());
+      setAuditLogs(AlertAuditLogger.getLogs());
+      setActiveContacts(SafetyCircleManager.getContacts());
+
+      // Sync "I'm Safe" lock for the day
+      const todayStr = new Date().toDateString();
+      const savedDate = localStorage.getItem('endlif_last_safe_confirm_date');
+      setIsSafeConfirmed(savedDate === todayStr && !state.isSimulation);
+    };
+
+    // Run initial threshold check
+    DailyCheckInManager.checkThreshold();
+    syncState();
+
+    window.addEventListener('endlif_checkin_updated', syncState);
+    window.addEventListener('endlif_alert_updated', syncState);
+    window.addEventListener('endlif_circle_updated', syncState);
+    window.addEventListener('endlif_profile_updated', syncState);
 
     const calculateTimeUntilMidnight = () => {
       const now = new Date();
@@ -89,30 +124,12 @@ export default function HomeView({
     calculateTimeUntilMidnight();
     const cdTimer = setInterval(calculateTimeUntilMidnight, 45000);
 
-    // Ensure we have a valid initial check-in timestamp in secure storage
-    let ts = SecureStorage.getItem('endlif_last_safe_confirm_timestamp');
-    if (!ts) {
-      const now = new Date();
-      ts = now.toISOString();
-      SecureStorage.setItem('endlif_last_safe_confirm_timestamp', ts);
-      localStorage.setItem('endlif_last_safe_confirm_date', now.toDateString());
-    }
-    setLastCheckInTimestamp(ts);
-
-    const handleSync = () => {
-      const todayStrCurrent = new Date().toDateString();
-      const savedDateCurrent = localStorage.getItem('endlif_last_safe_confirm_date');
-      setIsSafeConfirmed(savedDateCurrent === todayStrCurrent);
-      
-      const currentTs = SecureStorage.getItem('endlif_last_safe_confirm_timestamp');
-      setLastCheckInTimestamp(currentTs);
-    };
-
-    window.addEventListener('endlif_profile_updated', handleSync);
-
     return () => {
       clearInterval(cdTimer);
-      window.removeEventListener('endlif_profile_updated', handleSync);
+      window.removeEventListener('endlif_checkin_updated', syncState);
+      window.removeEventListener('endlif_alert_updated', syncState);
+      window.removeEventListener('endlif_circle_updated', syncState);
+      window.removeEventListener('endlif_profile_updated', syncState);
     };
   }, []);
 
@@ -157,29 +174,17 @@ export default function HomeView({
     };
   }, []);
 
-  // Clicking SOS triggers immediately for emergency responses!
   const handleImmediateSosClick = () => {
     onSosTrigger();
   };
 
-  // Helper functions for threshold checking & past timestamp simulations
-  const getMissedDays = () => {
-    if (!lastCheckInTimestamp) return 0;
-    const lastDate = new Date(lastCheckInTimestamp);
-    const currentDate = new Date();
-    
-    const diffMs = currentDate.getTime() - lastDate.getTime();
-    if (diffMs <= 0) return 0;
-    
-    return Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  };
-
-  const missedDaysCount = getMissedDays();
-  const alertActive = missedDaysCount >= threshold;
+  const missedDaysCount = checkInState.missedDays;
+  const alertActive = checkInState.isThresholdExceeded;
+  const threshold = checkInState.thresholdDays;
 
   const formatLastCheckInDateTime = () => {
-    if (!lastCheckInTimestamp) return 'No successful check-in recorded';
-    const d = new Date(lastCheckInTimestamp);
+    if (!checkInState.lastCheckInTimestamp) return 'No check-in recorded';
+    const d = new Date(checkInState.lastCheckInTimestamp);
     return d.toLocaleString([], {
       month: 'short',
       day: 'numeric',
@@ -189,56 +194,33 @@ export default function HomeView({
     });
   };
 
-  const handleThresholdChange = (newThreshold: number) => {
-    setThreshold(newThreshold);
-    SecureStorage.setItem('endlif_checkin_threshold', newThreshold.toString());
-    
+  const handleThresholdChange = (newThreshold: CheckInThreshold) => {
+    DailyCheckInManager.setThreshold(newThreshold);
     if (window.navigator?.vibrate) {
       window.navigator.vibrate([40, 20]);
     }
   };
 
-  const handleSimulatePastCheckIn = (daysAgo: number) => {
+  // Safely record user check-in
+  const handleConfirmSafe = () => {
+    DailyCheckInManager.recordCheckIn();
     const now = new Date();
-    if (daysAgo === 0) {
-      SecureStorage.setItem('endlif_last_safe_confirm_timestamp', now.toISOString());
-      localStorage.setItem('endlif_last_safe_confirm_date', now.toDateString());
-      setLastCheckInTimestamp(now.toISOString());
-      setIsSafeConfirmed(true);
-      setLastCheckInTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    } else {
-      const mockDate = new Date(now.getTime() - (daysAgo * 24 * 60 * 60 * 1000) - (60 * 60 * 1000)); // Past date with padding
-      SecureStorage.setItem('endlif_last_safe_confirm_timestamp', mockDate.toISOString());
-      localStorage.setItem('endlif_last_safe_confirm_date', mockDate.toDateString());
-      setLastCheckInTimestamp(mockDate.toISOString());
-      setIsSafeConfirmed(false);
-      setLastCheckInTime(mockDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    }
-
-    // Dispatch profile updated event so App state reloads if necessary
-    window.dispatchEvent(new Event('endlif_profile_updated'));
-    
+    setLastCheckInTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    setIsSafeConfirmed(true);
     if (window.navigator?.vibrate) {
-      window.navigator.vibrate([60, 40]);
+      window.navigator.vibrate([40, 30, 40]);
     }
   };
 
-  // Safely record user biometric lock
-  const handleConfirmSafe = () => {
-    const now = new Date();
-    const todayStr = now.toDateString();
-    localStorage.setItem('endlif_last_safe_confirm_date', todayStr);
-    SecureStorage.setItem('endlif_last_safe_confirm_timestamp', now.toISOString());
-    setLastCheckInTimestamp(now.toISOString());
-    setIsSafeConfirmed(true);
-
-    const stamp = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    setLastCheckInTime(stamp);
-
-    window.dispatchEvent(new Event('endlif_profile_updated'));
-    
-    if (window.navigator?.vibrate) {
-      window.navigator.vibrate([40, 30, 40]);
+  // Manual re-dispatch of emergency alerts
+  const handleManualRebroadcast = async () => {
+    if (isBroadcasting) return;
+    setIsBroadcasting(true);
+    try {
+      await EmergencyAlertManager.evaluateAndTriggerAlert({ forceRebroadcast: true });
+    } finally {
+      setIsBroadcasting(false);
+      setAuditLogs(AlertAuditLogger.getLogs());
     }
   };
 
@@ -419,7 +401,7 @@ export default function HomeView({
                   Warning Threshold
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {[2, 3, 7].map((val) => {
+                  {([2, 3, 7] as CheckInThreshold[]).map((val) => {
                     const isActive = threshold === val;
                     return (
                       <button
@@ -441,7 +423,7 @@ export default function HomeView({
                   })}
                 </div>
                 <p className="text-[9.5px] text-slate-400 font-bold font-sans leading-normal">
-                  If you do not confirm safety for {threshold} days, a custom emergency alert will be dispatched automatically.
+                  If you fail to complete your safety check-in within {threshold} days, the emergency alert protocol triggers automatically.
                 </p>
               </div>
 
@@ -452,46 +434,234 @@ export default function HomeView({
                 </label>
 
                 {alertActive ? (
-                  <div className="bg-rose-950/40 border border-rose-900/50 rounded-2xl p-4 space-y-3.5 shadow-inner">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping shrink-0" />
-                      <span className="text-xs font-black text-rose-400 uppercase tracking-wider font-mono">
-                        🚨 ALERTS DISPATCHED (THRESHOLD EXCEEDED)
-                      </span>
+                  <div className="bg-rose-950/40 border border-rose-900/50 rounded-2xl p-4 space-y-4 shadow-inner">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping shrink-0" />
+                        <span className="text-xs font-black text-rose-400 uppercase tracking-wider font-mono">
+                          🚨 EMERGENCY SAFETY ALERT ACTIVE
+                        </span>
+                      </div>
+                      {checkInState.isSimulation && (
+                        <span className="text-[8px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                          ⚠️ DEVELOPMENT SIMULATION
+                        </span>
+                      )}
                     </div>
                     
-                    <div className="space-y-1.5 text-xs text-slate-300 font-medium leading-relaxed bg-slate-950/50 rounded-xl p-3 border border-rose-950/60 shadow-2xs">
-                      <p className="font-extrabold text-[12px] text-rose-400">
-                        Broadcast Alert details:
-                      </p>
-                      <div className="border-l-3 border-rose-500 pl-3 italic font-mono text-[10.5px] text-rose-300 bg-rose-950/30 py-1.5 pr-2 rounded leading-normal text-left">
-                        "No safety check-in has been received for {profileName} for the selected period of {threshold} days. Please contact this person immediately. Last check-in date: {formatLastCheckInDateTime()}"
+                    {/* Canonical Alert Message */}
+                    <div className="space-y-2 text-xs text-slate-300 font-medium leading-relaxed bg-slate-950/70 rounded-xl p-3.5 border border-rose-950/60 shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <p className="font-extrabold text-[11px] text-rose-300 uppercase tracking-wider font-mono">
+                          Canonical Safety Message:
+                        </p>
+                        <span className="text-[9px] font-mono text-slate-400">
+                          {missedDaysCount} days overdue (Threshold: {threshold}d)
+                        </span>
                       </div>
-                      <p className="text-[10.5px] text-slate-400 mt-1 font-sans">
-                        Time since last check-in: <strong className="font-mono text-rose-400">{missedDaysCount} days</strong> (threshold of {threshold} days reached).
-                      </p>
+                      <div className="border-l-3 border-rose-500 pl-3 italic font-mono text-[10.5px] text-rose-200 bg-rose-950/30 py-2 pr-2 rounded leading-relaxed text-left whitespace-pre-wrap">
+                        {activeAlert?.message || `ENDLIF Safety Alert: No safety check-in has been received from ${profileName} for ${missedDaysCount} days. Please contact them immediately. Last check-in: ${formatLastCheckInDateTime()}`}
+                      </div>
+                      {activeAlert?.location && (
+                        <div className="text-[9px] font-mono text-indigo-300 flex items-center gap-1 mt-1">
+                          <Globe className="w-3 h-3 text-indigo-400" />
+                          <span>Last GPS: {activeAlert.location}</span>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Contacts dispatched list */}
-                    <div className="space-y-1.5">
-                      <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest font-mono">
-                        Recipients (Safety Circle):
-                      </p>
-                      <div className="grid grid-cols-1 gap-1.5 max-h-[140px] overflow-y-auto pr-1">
-                        {contacts.length === 0 ? (
-                          <div className="text-[10px] font-bold text-slate-500 italic bg-slate-950/40 p-2 rounded-xl text-center border border-dashed border-slate-800">
-                            No contacts found. Please add guardians in Circle.
+                    {/* Delivery Hierarchy Matrix */}
+                    <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-widest font-mono text-slate-300">
+                          SAFETY ALERT DELIVERY
+                        </span>
+                        <span className="text-[8px] font-mono text-emerald-400 font-bold">
+                          Multi-Channel Orchestration
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] font-mono">
+                        <div className="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                          <p className="text-emerald-400 font-bold flex items-center gap-1">
+                            <span>Primary:</span>
+                          </p>
+                          <p className="text-slate-200 font-semibold mt-0.5">
+                            ✓ ENDLIF App Notification (FCM Push)
+                          </p>
+                        </div>
+                        <div className="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                          <p className="text-indigo-400 font-bold flex items-center gap-1">
+                            <span>Fallback Hierarchy:</span>
+                          </p>
+                          <p className="text-slate-300 mt-0.5 leading-tight">
+                            • SMS (Device SMS & Cellular Gateway)<br />
+                            • Email (Universal Inbox Dispatch)<br />
+                            • Phone Call (Direct Emergency Dialer)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Recipients (Safety Circle Delivery Records) */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-black text-rose-300 uppercase tracking-widest font-mono">
+                          Safety Circle Recipient Status:
+                        </p>
+                        <span className="text-[9px] font-mono text-slate-400">
+                          {activeContacts.length} Guardians
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2 max-h-[220px] overflow-y-auto pr-1">
+                        {activeContacts.length === 0 ? (
+                          <div className="text-[10px] font-bold text-slate-500 italic bg-slate-950/40 p-3 rounded-xl text-center border border-dashed border-slate-800">
+                            No guardians enrolled in Circle. Please add guardians in the Circle tab.
                           </div>
                         ) : (
-                          contacts.map((c) => (
-                            <div key={c.id} className="flex items-center justify-between bg-slate-950/60 p-2.5 rounded-xl border border-rose-950/40 text-[11px] font-bold text-rose-200 shadow-3xs">
-                              <span className="truncate pr-1">{c.name} ({c.phone || '+1 (555) 012-3499'})</span>
-                              <span className="text-[8px] font-mono bg-emerald-950 text-emerald-400 px-1.5 py-0.5 rounded font-black uppercase tracking-wider whitespace-nowrap shrink-0 flex items-center gap-1 border border-emerald-900/30">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Sent SMS
-                              </span>
-                            </div>
-                          ))
+                          activeContacts.map((contact) => {
+                            const delivery = activeAlert?.recipients?.find(d => d.contactId === contact.id);
+                            const status = delivery?.status || (alertActive ? 'SMS Attempted' : 'Alert Created');
+                            const channel = delivery?.channel || (contact.fcmToken ? 'fcm' : 'sms');
+                            const isSim = delivery?.isSimulation ?? checkInState.isSimulation;
+                            const maskedPhone = maskPhoneNumber(contact.phone || '+15550123499');
+
+                            return (
+                              <div 
+                                key={contact.id} 
+                                className="bg-slate-950/70 p-3 rounded-xl border border-rose-950/40 space-y-2 text-left shadow-2xs"
+                              >
+                                <div className="flex items-center justify-between flex-wrap gap-1.5">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-rose-500/20 text-rose-300 flex items-center justify-center text-[10px] font-bold border border-rose-500/30">
+                                      {contact.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <p className="text-[11px] font-bold text-slate-200 leading-tight">
+                                        {contact.name}
+                                      </p>
+                                      <p className="text-[9px] font-mono text-slate-400">
+                                        {maskedPhone} {contact.email ? `• ${contact.email}` : ''}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    {/* Channel Badge */}
+                                    <span className="text-[8px] font-mono bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded uppercase font-bold border border-slate-700">
+                                      {channel.toUpperCase()}
+                                    </span>
+
+                                    {/* Status Badge */}
+                                    <span className={`text-[8px] font-mono px-2 py-0.5 rounded font-black uppercase tracking-wider flex items-center gap-1 border ${
+                                      status === 'FCM Delivered'
+                                        ? 'bg-emerald-950 text-emerald-400 border-emerald-800/40'
+                                        : status === 'FCM Sent'
+                                        ? 'bg-cyan-950 text-cyan-400 border-cyan-800/40'
+                                        : status === 'Email Sent'
+                                        ? 'bg-indigo-950 text-indigo-400 border-indigo-800/40'
+                                        : status === 'SMS Attempted'
+                                        ? 'bg-sky-950 text-sky-400 border-sky-800/40'
+                                        : status === 'Alert Created'
+                                        ? 'bg-amber-950 text-amber-400 border-amber-800/40'
+                                        : 'bg-rose-950 text-rose-400 border-rose-800/40'
+                                    }`}>
+                                      <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                                      {status}
+                                    </span>
+
+                                    {/* Simulation Tag */}
+                                    {isSim && (
+                                      <span className="text-[7.5px] font-mono bg-amber-950/80 text-amber-400 border border-amber-800/40 px-1.5 py-0.5 rounded font-bold">
+                                        SIMULATION
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Direct Fallback Actions */}
+                                <div className="flex items-center gap-1.5 pt-1 border-t border-slate-900 justify-end flex-wrap">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const body = `ENDLIF Safety Alert: No check-in has been received from ${profileName} for ${missedDaysCount} days. Please check on them immediately.`;
+                                      SMSFallbackService.triggerDeviceSms(contact, body);
+                                    }}
+                                    className="text-[9px] font-mono bg-slate-800 hover:bg-slate-750 text-slate-200 px-2 py-1 rounded-md font-bold transition-all cursor-pointer flex items-center gap-1 border border-slate-700"
+                                    title="Open native device SMS app"
+                                  >
+                                    <MessageSquare className="w-2.5 h-2.5 text-sky-400" />
+                                    <span>SMS</span>
+                                  </button>
+
+                                  {contact.email && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const url = EmailFallbackService.generateMailtoUri({
+                                          toEmail: contact.email!,
+                                          userName: profileName,
+                                          thresholdDays: threshold,
+                                          lastCheckInFormatted: formatLastCheckInDateTime(),
+                                          locationText: activeAlert?.location || 'Last reported location'
+                                        });
+                                        window.location.assign(url);
+                                      }}
+                                      className="text-[9px] font-mono bg-slate-800 hover:bg-slate-750 text-slate-200 px-2 py-1 rounded-md font-bold transition-all cursor-pointer flex items-center gap-1 border border-slate-700"
+                                      title="Draft email alert"
+                                    >
+                                      <Mail className="w-2.5 h-2.5 text-indigo-400" />
+                                      <span>Email</span>
+                                    </button>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      NotificationManager.initiateEmergencyCall(contact);
+                                    }}
+                                    className="text-[9px] font-mono bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 px-2 py-1 rounded-md font-bold transition-all cursor-pointer flex items-center gap-1 border border-emerald-800/40"
+                                    title="Dial phone number"
+                                  >
+                                    <PhoneCall className="w-2.5 h-2.5 text-emerald-400" />
+                                    <span>Call</span>
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
                         )}
+                      </div>
+
+                      {/* Action Bar */}
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          type="button"
+                          disabled={isBroadcasting}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleManualRebroadcast();
+                          }}
+                          className="flex-1 bg-rose-600 hover:bg-rose-500 disabled:bg-rose-900 text-white py-2.5 rounded-xl text-xs font-black transition-all active:scale-98 shadow-md flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider font-mono"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isBroadcasting ? 'animate-spin' : ''}`} />
+                          {isBroadcasting ? 'Broadcasting...' : '📢 Re-Dispatch Safety Alerts'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleConfirmSafe();
+                          }}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-98 cursor-pointer font-mono shrink-0 flex items-center gap-1"
+                          title="Confirm safety and clear emergency alerts"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>I'm Safe</span>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -504,23 +674,61 @@ export default function HomeView({
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-300 font-semibold font-sans leading-normal">
-                      Elapsed: <strong className="font-mono text-slate-100">{missedDaysCount} days</strong>. Next alert threshold will trigger if inactive for <strong className="font-mono text-indigo-400 font-bold">{threshold - missedDaysCount} more days</strong>.
+                      Elapsed: <strong className="font-mono text-slate-100">{missedDaysCount} days</strong>. Next alert threshold will trigger if inactive for <strong className="font-mono text-indigo-400 font-bold">{Math.max(0, threshold - missedDaysCount)} more days</strong>.
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Last Check-in */}
+              {/* Last Check-in Info */}
               <div className="bg-slate-850/60 border border-slate-800 rounded-2xl p-4 space-y-2">
                 <label className="text-[10px] font-black text-slate-450 uppercase tracking-widest font-mono block">
-                  Last Check-in
+                  Last Check-in Record
                 </label>
-                <div className="text-[11px] text-slate-200 font-mono flex items-center gap-1">
+                <div className="text-[11px] text-slate-200 font-mono flex items-center justify-between">
                   <strong className="text-slate-100">{formatLastCheckInDateTime()}</strong>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowAuditLogs(!showAuditLogs);
+                    }}
+                    className="text-[9px] text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <History className="w-3 h-3" />
+                    <span>{showAuditLogs ? 'Hide Audit Log' : 'Audit Trail'}</span>
+                  </button>
                 </div>
+
+                {/* Audit Trail Drawer */}
+                {showAuditLogs && (
+                  <div className="mt-3 pt-3 border-t border-slate-800 space-y-2">
+                    <div className="flex items-center justify-between text-[9px] font-mono text-slate-400 uppercase">
+                      <span>Immutable Event Log ({auditLogs.length})</span>
+                      <span>Security Grade</span>
+                    </div>
+                    <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-1 font-mono text-[9px]">
+                      {auditLogs.length === 0 ? (
+                        <p className="text-slate-500 italic">No events logged yet.</p>
+                      ) : (
+                        auditLogs.slice(0, 8).map((log) => (
+                          <div key={log.id} className="bg-slate-950 p-2 rounded-lg border border-slate-800/60 flex items-center justify-between gap-2">
+                            <div className="truncate">
+                              <span className="text-indigo-400 font-bold mr-1.5">[{log.eventType}]</span>
+                              <span className="text-slate-300">{log.detail}</span>
+                            </div>
+                            <span className="text-[8px] text-slate-500 shrink-0">
+                              {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Sandbox Testing */}
+              {/* Safe Development Mode Dock */}
               <div className="border-t border-slate-800 pt-3">
                 <button
                   type="button"
@@ -530,72 +738,106 @@ export default function HomeView({
                   }}
                   className="w-full flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono cursor-pointer hover:text-slate-300 transition-colors"
                 >
-                  <span>{showSimulator ? '▼ Hide' : '▶ Show'} Sandbox Testing Dock</span>
-                  <span className="bg-indigo-950 border border-indigo-900/50 text-indigo-400 text-[8px] font-black px-2 py-0.5 rounded-md uppercase">
-                    Sandbox tool
+                  <span className="flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{showSimulator ? '▼ Hide' : '▶ Show'} Safe Development Mode</span>
+                  </span>
+                  <span className="bg-amber-950 border border-amber-900/50 text-amber-400 text-[8px] font-black px-2 py-0.5 rounded-md uppercase">
+                    Dev Simulator
                   </span>
                 </button>
 
                 {showSimulator && (
-                  <div className="bg-slate-950 border border-slate-850 rounded-2xl p-4 mt-3 space-y-3.5 text-left text-slate-100 shadow-lg relative">
-                    <div className="absolute top-1.5 right-2 flex items-center gap-1">
-                      <span className="w-1 h-1 rounded-full bg-amber-500 animate-ping" />
-                      <span className="text-[7.5px] font-mono text-amber-500 font-bold">SANDBOX STATE</span>
+                  <div className="bg-slate-950 border border-amber-950/60 rounded-2xl p-4 mt-3 space-y-3.5 text-left text-slate-100 shadow-lg relative">
+                    <div className="flex items-center justify-between border-b border-slate-850 pb-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                        <span className="text-[9px] font-mono text-amber-400 font-bold uppercase tracking-wider">
+                          SAFE DEVELOPMENT SIMULATION
+                        </span>
+                      </div>
+                      <span className="text-[8px] font-mono text-slate-400">
+                        Zero Carrier Charges
+                      </span>
                     </div>
+
                     <p className="text-[10px] text-slate-400 font-medium font-sans leading-normal">
-                      Select a mock past check-in time to instantly verify how the automatic comparing logic triggers, sends alerts to the Circle, and updates the telemetry status.
+                      Simulate elapsed safety check-in intervals to verify threshold evaluation, canonical emergency message generation, and multi-channel fallback dispatches safely without sending unprompted real-world broadcasts.
                     </p>
 
                     <div className="grid grid-cols-2 gap-2 text-[10.5px] font-black font-mono">
                       <button
-                        key="sim-0"
+                        key="sim-reset"
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleSimulatePastCheckIn(0);
+                          DailyCheckInManager.resetSimulation();
+                          setAuditLogs(AlertAuditLogger.getLogs());
                         }}
                         className="py-2.5 bg-slate-900 hover:bg-slate-850 text-white rounded-xl border border-slate-800 cursor-pointer transition-all active:scale-98 flex flex-col items-center justify-center gap-0.5 font-bold"
                       >
-                        <span className="text-[9px] uppercase">Reset (Check-In Now)</span>
-                        <span className="text-[7.5px] text-slate-400 font-semibold">(0 Days Elapsed)</span>
+                        <span className="text-[9px] uppercase">Reset to Today</span>
+                        <span className="text-[7.5px] text-emerald-400 font-semibold">(Safe • 0 Days Missed)</span>
                       </button>
+
                       <button
                         key="sim-2"
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleSimulatePastCheckIn(2);
+                          DailyCheckInManager.simulateMissedDays(2);
+                          setAuditLogs(AlertAuditLogger.getLogs());
                         }}
                         className="py-2.5 bg-slate-900 hover:bg-slate-850 text-white rounded-xl border border-slate-800 cursor-pointer transition-all active:scale-98 flex flex-col items-center justify-center gap-0.5 font-bold"
                       >
-                        <span className="text-[9px] uppercase">Simulate 2 Days Ago</span>
-                        <span className="text-[7.5px] text-amber-500 font-bold">(Triggers 2-day Threshold)</span>
+                        <span className="text-[9px] uppercase">Simulate 2 Days Missed</span>
+                        <span className="text-[7.5px] text-amber-400 font-bold">(Triggers 2-day Threshold)</span>
                       </button>
+
                       <button
                         key="sim-3"
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleSimulatePastCheckIn(3);
+                          DailyCheckInManager.simulateMissedDays(3);
+                          setAuditLogs(AlertAuditLogger.getLogs());
                         }}
                         className="py-2.5 bg-slate-900 hover:bg-slate-850 text-white rounded-xl border border-slate-800 cursor-pointer transition-all active:scale-98 flex flex-col items-center justify-center gap-0.5 font-bold"
                       >
-                        <span className="text-[9px] uppercase">Simulate 3 Days Ago</span>
-                        <span className="text-[7.5px] text-amber-500 font-bold">(Triggers 2 & 3-day)</span>
+                        <span className="text-[9px] uppercase">Simulate 3 Days Missed</span>
+                        <span className="text-[7.5px] text-amber-400 font-bold">(Triggers 2 & 3-day)</span>
                       </button>
+
                       <button
-                        key="sim-8"
+                        key="sim-7"
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleSimulatePastCheckIn(8);
+                          DailyCheckInManager.simulateMissedDays(7);
+                          setAuditLogs(AlertAuditLogger.getLogs());
                         }}
                         className="py-2.5 bg-rose-950/40 hover:bg-rose-900/40 border border-rose-900/50 text-rose-200 rounded-xl cursor-pointer transition-all active:scale-98 flex flex-col items-center justify-center gap-0.5 font-bold"
                       >
-                        <span className="text-[9px] uppercase">Simulate 8 Days Ago</span>
-                        <span className="text-[7.5px] text-rose-400 font-bold">(Triggers All Thresholds!)</span>
+                        <span className="text-[9px] uppercase">Simulate 7 Days Missed</span>
+                        <span className="text-[7.5px] text-rose-400 font-bold">(Triggers All Thresholds)</span>
                       </button>
                     </div>
+
+                    {checkInState.isSimulation && (
+                      <div className="bg-amber-950/30 border border-amber-900/40 rounded-xl p-2.5 text-[9.5px] font-mono text-amber-300 flex items-center justify-between">
+                        <span>Simulation Active: {checkInState.simulatedMissedDays} days simulated</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            DailyCheckInManager.resetSimulation();
+                          }}
+                          className="underline hover:text-white cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -604,29 +846,29 @@ export default function HomeView({
         </AnimatePresence>
       </div>
 
-      {/* Endlife Creator Hub Banner */}
+      {/* Endlif Guardian Hub Banner */}
       <div 
         onClick={() => setScreen('creator_hub')}
         className="w-full bg-slate-900 border border-slate-800 rounded-[24px] p-5 flex items-center gap-4 cursor-pointer hover:bg-slate-850 transition-all shadow-sm group relative overflow-hidden text-slate-100"
       >
         <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl group-hover:bg-indigo-550/20 transition-all" />
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-550 via-indigo-650 to-rose-500 text-white flex items-center justify-center group-hover:scale-105 transition-all shrink-0 shadow-md border border-indigo-500/20">
-          <Award className="w-6 h-6 animate-pulse" />
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-emerald-500 text-white flex items-center justify-center group-hover:scale-105 transition-all shrink-0 shadow-md border border-indigo-500/30">
+          <Shield className="w-6 h-6 animate-pulse text-indigo-200" />
         </div>
         <div className="flex-1 text-left min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[8px] font-black font-mono bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 py-0.5 px-2 rounded uppercase tracking-wider">
-              CREATOR HUB
+              GUARDIAN HUB
             </span>
             <span className="text-[8px] font-black font-mono bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 py-0.5 px-2 rounded uppercase tracking-wider">
-              +POINTS & BADGES
+              SAFETY MOVEMENT
             </span>
           </div>
           <p className="font-sans font-black text-sm text-slate-100 mt-1 uppercase tracking-tight">
-            Creator Hub
+            Guardian Hub
           </p>
           <p className="text-[10px] text-slate-400 font-medium font-sans leading-normal line-clamp-1 truncate mt-0.5">
-            Create your channel, earn points, track community growth metrics, and stack awards.
+            Invite someone. Help protect someone. Rise through 7 Guardian ranks and unlock verified attestation.
           </p>
         </div>
         <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-slate-300 transition-colors shrink-0" />
@@ -635,22 +877,32 @@ export default function HomeView({
       {/* Voice Assistant Futuristic Shortcut */}
       <div 
         onClick={() => setScreen('assistant')}
-        className="w-full bg-slate-50 border border-slate-200/90 rounded-[24px] p-5 flex items-center gap-4 cursor-pointer hover:bg-slate-100/70 transition-all shadow-2xs group relative overflow-hidden"
+        className="w-full bg-slate-900 border border-slate-800 rounded-[24px] p-5 flex items-center gap-4 cursor-pointer hover:bg-slate-850 transition-all shadow-md group relative overflow-hidden text-slate-100"
       >
-        <div className="absolute right-0 top-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl group-hover:bg-indigo-550/10 transition-all" />
+        <div className="absolute right-0 top-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-550/20 transition-all" />
         
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-700 text-white flex items-center justify-center group-hover:scale-105 transition-transform shrink-0 shadow-xs border border-indigo-500/20">
-          <Sparkles className="w-5.5 h-5.5 animate-pulse" />
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 text-white flex items-center justify-center group-hover:scale-105 transition-transform shrink-0 shadow-md border border-indigo-400/30">
+          <BrainCircuit className="w-6 h-6 animate-pulse text-blue-200" />
         </div>
         <div className="flex-1 text-left min-w-0">
-          <p className="font-mono text-[13px] text-slate-800 font-semibold italic group-hover:text-indigo-700 transition-colors truncate">
-            "Hey Achyuta, I'm heading home now."
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[8px] font-black font-mono bg-blue-500/20 border border-blue-400/30 text-blue-300 py-0.5 px-2 rounded uppercase tracking-wider flex items-center gap-1">
+              <Globe className="w-2.5 h-2.5 text-blue-400" />
+              SEARCH GROUNDED
+            </span>
+            <span className="text-[8px] font-black font-mono bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 py-0.5 px-2 rounded uppercase tracking-wider">
+              GEMINI 2.5 FLASH
+            </span>
+          </div>
+          <p className="font-sans font-bold text-xs text-slate-100 mt-1 truncate">
+            "Achyuta, what is the official police emergency number in Mumbai?"
           </p>
-          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-1 flex items-center gap-1">
-            Achyuta Super Intelligence <span className="text-emerald-500 animate-ping">●</span>
+          <p className="text-[10px] text-slate-400 font-medium font-sans leading-normal truncate mt-0.5 flex items-center gap-1.5">
+            <span>Tap to open full tactical guardian console</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
           </p>
         </div>
-        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
+        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors shrink-0" />
       </div>
 
     </motion.div>
